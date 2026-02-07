@@ -1,0 +1,7 @@
+{
+  "plugins": [
+    "expo-asset"
+  ],
+  "name": "rscubes-expo",
+  "slug": "rscubes-expo"
+}
