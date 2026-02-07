@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "module": "commonjs",
+    "outDir": "dist",
+    "strict": true,
+    "inlineSources": true,
+    "sourceMap": true,
+    "allowJs": true
+  },
+  "include": [
+    "src/**/*",
+    "global.d.ts"
+  ]
+}

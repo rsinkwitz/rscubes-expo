@@ -3,5 +3,14 @@
     "expo-asset"
   ],
   "name": "rscubes-expo",
-  "slug": "rscubes-expo"
+  "slug": "rscubes-expo",
+  "assetBundlePatterns": [
+    "assets/**/*"
+  ],
+  "android": {
+    "package": "com.anonymous.rscubesexpo"
+  },
+  "ios": {
+    "bundleIdentifier": "com.anonymous.rscubesexpo"
+  }
 }

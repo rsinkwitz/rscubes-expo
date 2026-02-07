@@ -1,21 +1,316 @@
-import React from "react";
-import { SafeAreaView, StyleSheet } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { StyleSheet, Platform, ActivityIndicator, View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { WebView } from "react-native-webview";
+import { SafeAreaView } from "react-native-safe-area-context";
+import * as FileSystem from "expo-file-system/legacy";
+import { Asset } from "expo-asset";
 
 export default function App() {
-  // Ersetze die URL durch die deiner three.js-Webanwendung
-  const webAppUrl = "https://rsinkwitz.github.io/cubes/3x3/index.html";
+  const [webAppUri, setWebAppUri] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const webViewRef = useRef(null);
+
+  useEffect(() => {
+    loadWebApp();
+  }, []);
+
+  // Hilfsfunktion um Aktionen an die WebView zu senden
+  const sendToWebView = (action, params) => {
+    if (webViewRef.current) {
+      const message = JSON.stringify({ action, params });
+      webViewRef.current.postMessage(message);
+    }
+  };
+
+  const copyAssetToLocal = async (assetModule, filename) => {
+    try {
+      const asset = Asset.fromModule(assetModule);
+      await asset.downloadAsync();
+
+      const targetPath = `${FileSystem.documentDirectory}webapp/${filename}`;
+
+      // Kopiere die Datei mit der Legacy API
+      await FileSystem.copyAsync({
+        from: asset.localUri,
+        to: targetPath
+      });
+
+      return true;
+    } catch (err) {
+      console.warn(`Could not copy ${filename}:`, err.message);
+      return false;
+    }
+  };
+
+  const loadWebApp = async () => {
+    try {
+      if (Platform.OS === "web") {
+        // Auf Web laden wir die Datei aus dem public-Ordner
+        setWebAppUri("/index.html");
+        setLoading(false);
+      } else {
+        // Auf Native: Kopiere HTML und JS in ein temporäres Verzeichnis
+        const tempDir = `${FileSystem.cacheDirectory}webapp/`;
+
+        // Lösche das alte Verzeichnis, um sicherzustellen, dass wir die neueste Version haben
+        const dirInfo = await FileSystem.getInfoAsync(tempDir);
+        if (dirInfo.exists) {
+          await FileSystem.deleteAsync(tempDir, { idempotent: true });
+          console.log("🗑️ Cleared old cache");
+        }
+
+        // Erstelle Verzeichnis neu
+        await FileSystem.makeDirectoryAsync(tempDir, { intermediates: true });
+
+        // Lade HTML-Asset
+        const htmlAsset = Asset.fromModule(require("./assets/webapp/index.html"));
+        await htmlAsset.downloadAsync();
+
+        // Kopiere HTML
+        await FileSystem.copyAsync({
+          from: htmlAsset.localUri,
+          to: `${tempDir}index.html`
+        });
+        console.log("✓ Copied: index.html");
+
+        // Lade JS-Bundle (als .txt um Metro zu umgehen)
+        // Nein, warte - wir müssen das JS direkt kopieren
+        // Lade das JS-Asset durch fetch und schreibe es
+        const jsAsset = Asset.fromModule(require("./assets/webapp/renderer.bundle.js.txt"));
+        await jsAsset.downloadAsync();
+
+        // Lese den Inhalt und schreibe als .js
+        const jsContent = await FileSystem.readAsStringAsync(jsAsset.localUri);
+        await FileSystem.writeAsStringAsync(
+          `${tempDir}renderer.bundle.js`,
+          jsContent
+        );
+        console.log("✓ Copied: renderer.bundle.js");
+
+        // Kopiere Texturen
+        const texturesDir = `${tempDir}textures/`;
+        const texturesDirInfo = await FileSystem.getInfoAsync(texturesDir);
+        if (!texturesDirInfo.exists) {
+          await FileSystem.makeDirectoryAsync(texturesDir, { intermediates: true });
+        }
+
+        try {
+          const texture1 = Asset.fromModule(require("./assets/webapp/textures/autumn_field_puresky_1k.hdr"));
+          await texture1.downloadAsync();
+          await FileSystem.copyAsync({
+            from: texture1.localUri,
+            to: `${texturesDir}autumn_field_puresky_1k.hdr`
+          });
+          console.log("✓ Copied: autumn_field_puresky_1k.hdr");
+        } catch (err) {
+          console.warn("Could not copy texture:", err.message);
+        }
+
+        try {
+          const texture2 = Asset.fromModule(require("./assets/webapp/textures/rosendal_plains_2_1k.hdr"));
+          await texture2.downloadAsync();
+          await FileSystem.copyAsync({
+            from: texture2.localUri,
+            to: `${texturesDir}rosendal_plains_2_1k.hdr`
+          });
+          console.log("✓ Copied: rosendal_plains_2_1k.hdr");
+        } catch (err) {
+          console.warn("Could not copy texture:", err.message);
+        }
+
+        const indexPath = `${tempDir}index.html`;
+        console.log("Loading webapp from:", indexPath);
+        setWebAppUri(indexPath);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Error loading web app:", error);
+      setError(error.message);
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3d81f6" />
+          <Text style={styles.loadingText}>Loading Web App...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>Error: {error}</Text>
+          <Text style={styles.errorDetails}>{error}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Auf Web verwenden wir einen iframe statt WebView für bessere Kompatibilität
+  if (Platform.OS === "web") {
+    return (
+      <View style={styles.container}>
+        <iframe
+          src={webAppUri}
+          style={{
+            width: "100%",
+            height: "100%",
+            border: "none",
+          }}
+          title="Rubik's Cube Simulator"
+        />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Control Buttons */}
+      <View style={styles.controlsContainer}>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={styles.button} onPress={() => sendToWebView('undo')}>
+            <Text style={styles.buttonText}>↶ Undo</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => sendToWebView('redo')}>
+            <Text style={styles.buttonText}>↷ Redo</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => sendToWebView('shuffle', 10)}>
+            <Text style={styles.buttonText}>🎲 Shuffle</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => sendToWebView('morph', 0)}>
+            <Text style={styles.buttonText}>3x3</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={styles.button} onPress={() => sendToWebView('morph', 1)}>
+            <Text style={styles.buttonText}>2x2</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => sendToWebView('morph', 3)}>
+            <Text style={styles.buttonText}>Pyra</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => sendToWebView('mirror')}>
+            <Text style={styles.buttonText}>🪞 Mirror</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* WebView */}
       <WebView
-        source={{ uri: webAppUrl }}
+        ref={webViewRef}
+        source={{ uri: webAppUri }}
         style={styles.webview}
-        originWhitelist={["*"]}
+        originWhitelist={['*', 'file://', 'http://', 'https://']}
         javaScriptEnabled={true}
         domStorageEnabled={true}
         allowsInlineMediaPlayback={true}
         mediaPlaybackRequiresUserAction={false}
+        allowFileAccess={true}
+        allowUniversalAccessFromFileURLs={true}
+        allowFileAccessFromFileURLs={true}
+        mixedContentMode="always"
+        onError={(syntheticEvent) => {
+          const { nativeEvent } = syntheticEvent;
+          console.error("WebView error: ", nativeEvent);
+        }}
+        onHttpError={(syntheticEvent) => {
+          const { nativeEvent } = syntheticEvent;
+          console.error("WebView HTTP error: ", nativeEvent);
+        }}
+        onLoadEnd={() => {
+          console.log("WebView loaded successfully");
+        }}
+        onConsoleMessage={(event) => {
+          console.log("WebView console:", event.nativeEvent.message);
+        }}
+        onMessage={(event) => {
+          // This enables two-way communication
+          console.log("Message from WebView:", event.nativeEvent.data);
+        }}
+        injectedJavaScript={`
+          // Ensure document and window are available before any script loads
+          console.log('=== WebView Init ===');
+          console.log('document:', typeof document);
+          console.log('window:', typeof window);
+          console.log('document.readyState:', document.readyState);
+
+          if (typeof document === 'undefined') {
+            console.error('CRITICAL: document is undefined in WebView');
+          }
+          if (typeof window === 'undefined') {
+            console.error('CRITICAL: window is undefined in WebView');
+          }
+
+          // Check if script tags are present
+          setTimeout(() => {
+            const scripts = document.getElementsByTagName('script');
+            console.log('Number of script tags:', scripts.length);
+            for (let i = 0; i < scripts.length; i++) {
+              console.log('Script', i, ':', scripts[i].src || 'inline');
+            }
+          }, 100);
+
+          // Fange alle Fehler ab
+          window.onerror = function(message, source, lineno, colno, error) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'error',
+              message: message,
+              source: source,
+              lineno: lineno,
+              colno: colno,
+              stack: error ? error.stack : null
+            }));
+            return false;
+          };
+
+          // Fange unbehandelte Promise-Fehler ab
+          window.addEventListener('unhandledrejection', function(event) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'unhandledrejection',
+              reason: String(event.reason)
+            }));
+          });
+
+          console.log('WebView error handler initialized');
+
+          // Debugging: Prüfe DOM und Three.js nach dem Laden
+          setTimeout(function() {
+            var debug = {
+              container: document.getElementById('container'),
+              canvas: document.querySelector('canvas'),
+              THREE: typeof THREE !== 'undefined',
+              cube: typeof cube !== 'undefined',
+              containerHTML: document.getElementById('container') ? document.getElementById('container').innerHTML : 'not found'
+            };
+            console.log('DEBUG INFO:', JSON.stringify(debug, null, 2));
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'debug',
+              data: debug
+            }));
+          }, 2000);
+
+          true;
+        `}
+        onMessage={(event) => {
+          try {
+            const data = JSON.parse(event.nativeEvent.data);
+            if (data.type === 'error' || data.type === 'unhandledrejection') {
+              console.error("❌ WebView JS Error:", JSON.stringify(data, null, 2));
+            } else if (data.type === 'debug') {
+              console.log("🔍 DEBUG INFO:", JSON.stringify(data.data, null, 2));
+            } else {
+              console.log("WebView message:", JSON.stringify(data, null, 2));
+            }
+          } catch (e) {
+            console.log("WebView message:", event.nativeEvent.data);
+          }
+        }}
       />
     </SafeAreaView>
   );
@@ -24,8 +319,62 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#fff",
+  },
+  controlsContainer: {
+    backgroundColor: "#f5f5f5",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+  },
+  buttonRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginVertical: 4,
+  },
+  button: {
+    backgroundColor: "#3d81f6",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  buttonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
   },
   webview: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#666",
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "red",
+    textAlign: "center",
+    padding: 20,
+  },
+  errorDetails: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    padding: 10,
   },
 });
