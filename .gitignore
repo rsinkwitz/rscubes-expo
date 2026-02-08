@@ -35,5 +35,13 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Project-specific
 app-example
 /.idea/
+
+# Development documentation (optional - entfernen wenn Sie diese committen möchten)
+# doc/
+# *_FIX.md
+# *_ERFOLG.md
+# *_STATUS.md
+

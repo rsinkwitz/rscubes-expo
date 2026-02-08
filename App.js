@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { StyleSheet, Platform, ActivityIndicator, View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { WebView } from "react-native-webview";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import * as FileSystem from "expo-file-system/legacy";
 import { Asset } from "expo-asset";
 
@@ -10,6 +10,24 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const webViewRef = useRef(null);
+
+  // Wrap everything in SafeAreaProvider
+  return (
+    <SafeAreaProvider>
+      <AppContent
+        webAppUri={webAppUri}
+        setWebAppUri={setWebAppUri}
+        loading={loading}
+        setLoading={setLoading}
+        error={error}
+        setError={setError}
+        webViewRef={webViewRef}
+      />
+    </SafeAreaProvider>
+  );
+}
+
+function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setError, webViewRef }) {
 
   useEffect(() => {
     loadWebApp();
@@ -46,8 +64,8 @@ export default function App() {
   const loadWebApp = async () => {
     try {
       if (Platform.OS === "web") {
-        // Auf Web laden wir die Datei aus dem public-Ordner
-        setWebAppUri("/index.html");
+        // Auf Web laden wir die Cube-HTML aus dem public-Ordner
+        setWebAppUri("/cube.html");
         setLoading(false);
       } else {
         // Auf Native: Kopiere HTML und JS in ein temporäres Verzeichnis
@@ -165,15 +183,54 @@ export default function App() {
     );
   }
 
+  // Hilfsfunktion um Aktionen an iframe zu senden (für Web)
+  const sendToIframe = (action, params) => {
+    if (webViewRef.current && webViewRef.current.contentWindow) {
+      const message = JSON.stringify({ action, params });
+      webViewRef.current.contentWindow.postMessage(message, '*');
+    }
+  };
+
   // Auf Web verwenden wir einen iframe statt WebView für bessere Kompatibilität
   if (Platform.OS === "web") {
     return (
       <View style={styles.container}>
+        {/* Control Buttons - gleiche wie auf Mobile */}
+        <View style={styles.controlsContainer}>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.button} onPress={() => sendToIframe('undo')}>
+              <Text style={styles.buttonText}>↶ Undo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => sendToIframe('redo')}>
+              <Text style={styles.buttonText}>↷ Redo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => sendToIframe('shuffle', 10)}>
+              <Text style={styles.buttonText}>🎲 Shuffle</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => sendToIframe('morph', 0)}>
+              <Text style={styles.buttonText}>3x3</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.button} onPress={() => sendToIframe('morph', 1)}>
+              <Text style={styles.buttonText}>2x2</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => sendToIframe('morph', 3)}>
+              <Text style={styles.buttonText}>Pyra</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => sendToIframe('mirror')}>
+              <Text style={styles.buttonText}>🪞 Mirror</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* iframe für Web */}
         <iframe
+          ref={webViewRef}
           src={webAppUri}
           style={{
             width: "100%",
-            height: "100%",
+            flex: 1,
             border: "none",
           }}
           title="Rubik's Cube Simulator"
