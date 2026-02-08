@@ -195,23 +195,12 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
   if (Platform.OS === "web") {
     return (
       <View style={styles.container}>
-        {/* Control Buttons - gleiche wie auf Mobile */}
+        {/* Control Buttons - EINE Zeile auf Web: Shapes dann Actions */}
         <View style={styles.controlsContainer}>
-          <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.button} onPress={() => sendToIframe('undo')}>
-              <Text style={styles.buttonText}>↶ Undo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.button} onPress={() => sendToIframe('redo')}>
-              <Text style={styles.buttonText}>↷ Redo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.button} onPress={() => sendToIframe('shuffle', 10)}>
-              <Text style={styles.buttonText}>🎲 Shuffle</Text>
-            </TouchableOpacity>
+          <View style={styles.buttonRowSingle}>
             <TouchableOpacity style={styles.button} onPress={() => sendToIframe('morph', 0)}>
               <Text style={styles.buttonText}>3x3</Text>
             </TouchableOpacity>
-          </View>
-          <View style={styles.buttonRow}>
             <TouchableOpacity style={styles.button} onPress={() => sendToIframe('morph', 1)}>
               <Text style={styles.buttonText}>2x2</Text>
             </TouchableOpacity>
@@ -220,6 +209,15 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
             </TouchableOpacity>
             <TouchableOpacity style={styles.button} onPress={() => sendToIframe('mirror')}>
               <Text style={styles.buttonText}>🪞 Mirror</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => sendToIframe('undo')}>
+              <Text style={styles.buttonText}>↶ Undo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => sendToIframe('redo')}>
+              <Text style={styles.buttonText}>↷ Redo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => sendToIframe('shuffle', 10)}>
+              <Text style={styles.buttonText}>🎲 Shuffle</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -241,8 +239,22 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Control Buttons */}
+      {/* Control Buttons - ZWEI Zeilen auf Mobile: Shapes oben, Actions unten */}
       <View style={styles.controlsContainer}>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={styles.button} onPress={() => sendToWebView('morph', 0)}>
+            <Text style={styles.buttonText}>3x3</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => sendToWebView('morph', 1)}>
+            <Text style={styles.buttonText}>2x2</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => sendToWebView('morph', 3)}>
+            <Text style={styles.buttonText}>Pyra</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => sendToWebView('mirror')}>
+            <Text style={styles.buttonText}>🪞 Mirror</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.buttonRow}>
           <TouchableOpacity style={styles.button} onPress={() => sendToWebView('undo')}>
             <Text style={styles.buttonText}>↶ Undo</Text>
@@ -252,20 +264,6 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
           </TouchableOpacity>
           <TouchableOpacity style={styles.button} onPress={() => sendToWebView('shuffle', 10)}>
             <Text style={styles.buttonText}>🎲 Shuffle</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={() => sendToWebView('morph', 0)}>
-            <Text style={styles.buttonText}>3x3</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.button} onPress={() => sendToWebView('morph', 1)}>
-            <Text style={styles.buttonText}>2x2</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={() => sendToWebView('morph', 3)}>
-            <Text style={styles.buttonText}>Pyra</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={() => sendToWebView('mirror')}>
-            <Text style={styles.buttonText}>🪞 Mirror</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -426,6 +424,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+    marginVertical: 4,
+  },
+  buttonRowSingle: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    flexWrap: "wrap",
     marginVertical: 4,
   },
   button: {
