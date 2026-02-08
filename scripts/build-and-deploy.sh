@@ -7,7 +7,7 @@ echo "Starting build and deploy..."
 cd /Users/sra/Documents/p/tech/mobile/rscubes-expo/webapp-source
 
 echo "Building with webpack..."
-npx webpack --config webpack.webview.config.js --mode production
+npx webpack --config webpack.config.js --mode production
 
 if [ -f "dist-webview/renderer.bundle.js" ]; then
   echo "Build successful!"

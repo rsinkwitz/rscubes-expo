@@ -4,9 +4,9 @@
   "description": "Electron application displaying a rotating 3D cube using Three.js and TypeScript.",
   "main": "dist/main.js",
   "scripts": {
-    "build": "webpack --config webpack.webview.config.js",
+    "build": "webpack --config webpack.config.js",
     "build:electron": "webpack && tsc",
-    "build:webview": "./node_modules/.bin/webpack --config webpack.webview.config.js",
+    "build:webview": "./node_modules/.bin/webpack --config webpack.config.js",
     "start": "electron .",
     "open": "webpack serve --open"
   },

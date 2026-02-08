@@ -2,22 +2,19 @@ const path = require('path');
 const CopyPlugin = require("copy-webpack-plugin");
 
 module.exports = {
-  mode: 'development',
+  mode: 'production', // Produktionsmodus für optimiertes Bundle
   entry: {
     renderer: './src/renderer.ts',
-    preload: './preload.js'
   },
   output: {
     filename: '[name].bundle.js',
-    path: path.resolve(__dirname, 'dist'),
+    path: path.resolve(__dirname, 'dist-webview'),
+    publicPath: '', // Empty string for relative paths (important for WebView!)
+    // REMOVED library config - we don't want immediate execution
   },
-  target: 'electron-renderer',
-  node: {
-    __dirname: false,
-    __filename: false,
-  },
+  target: 'web', // Für WebView, nicht electron-renderer
   resolve: {
-    extensions: ['.js', '.ts'], // Add TypeScript extension
+    extensions: ['.js', '.ts'],
     modules: [
       path.resolve(__dirname, 'node_modules')
     ],
@@ -32,26 +29,24 @@ module.exports = {
         }
       },
       {
-        test: /\.(woff(2)?|ttf|eot|svg|typeface\.json)(\?v=\d+\.\d+\.\d+)?$/,
+        // JSON files (including typeface.json) should be imported as objects
+        test: /\.json$/,
+        type: 'json'
+      },
+      {
+        // Other font files use file-loader
+        test: /\.(woff(2)?|ttf|eot|svg)(\?v=\d+\.\d+\.\d+)?$/,
         use: [
           {
             loader: 'file-loader',
             options: {
-              name(resourcePath, resourceQuery) {
-                // `resourcePath` - `/absolute/path/to/file.js`
-                // `resourceQuery` - `?foo=bar`
-
-                if (process.env.NODE_ENV === 'development') {
-                  return '[path][name].[ext]';
-                }
-
-                return '[contenthash].[ext]';
-              },
-              modules: true
+              name: '[name].[ext]',
+              outputPath: 'fonts/',
+              publicPath: 'fonts/',
             }
           }
         ],
-        type: 'javascript/auto', // This line is important to load JSON files
+        type: 'javascript/auto',
       }
     ]
   },
@@ -60,16 +55,26 @@ module.exports = {
       patterns: [
         {
           from: "src/index.html",
+          to: "index.html",
+          transform(content) {
+            // Ändere den Script-Tag: entferne type="module" und korrigiere Pfad
+            let html = content.toString();
+            html = html.replace(
+              '<script type="module" src="../dist/renderer.bundle.js"></script>',
+              '<script src="renderer.bundle.js"></script>'
+            );
+            return html;
+          }
         },
+        {
+          from: "textures",
+          to: "textures"
+        }
       ],
     }),
   ],
-  devtool: 'source-map',
-  devServer: {
-    static: {
-      directory: path.join(__dirname, '.'),
-    },
-    compress: true,
-    port: 9000
-  }
+  optimization: {
+    minimize: false, // Für besseres Debugging
+  },
+  devtool: false, // Keine source maps für WebView
 };

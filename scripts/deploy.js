@@ -9,7 +9,7 @@ const publicDir = '/Users/sra/Documents/p/tech/mobile/rscubes-expo/public';
 console.log('Building webpack bundle...');
 try {
   process.chdir(webappSourceDir);
-  execSync('npx webpack --config webpack.webview.config.js --mode production', {
+  execSync('npx webpack --config webpack.config.js --mode production', {
     stdio: 'inherit'
   });
 
