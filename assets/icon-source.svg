@@ -1,0 +1,30 @@
+<svg width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="#b0c4de"/>
+
+  <!-- Rubik's Cube 3D View -->
+  <g transform="translate(512, 400)">
+    <!-- Top face (Yellow) -->
+    <polygon points="0,-150 200,-50 0,50 -200,-50" fill="#FFD700" stroke="#333" stroke-width="4"/>
+    <line x1="-67" y1="-50" x2="67" y2="0" stroke="#333" stroke-width="2"/>
+    <line x1="67" y1="-100" x2="67" y2="0" stroke="#333" stroke-width="2"/>
+
+    <!-- Right face (Red) -->
+    <polygon points="200,-50 200,250 0,350 0,50" fill="#FF4444" stroke="#333" stroke-width="4"/>
+    <line x1="200" y1="50" x2="0" y2="150" stroke="#333" stroke-width="2"/>
+    <line x1="200" y1="150" x2="0" y2="250" stroke="#333" stroke-width="2"/>
+    <line x1="67" y1="100" x2="67" y2="300" stroke="#333" stroke-width="2"/>
+    <line x1="133" y1="50" x2="133" y2="250" stroke="#333" stroke-width="2"/>
+
+    <!-- Front face (Blue) -->
+    <polygon points="0,50 0,350 -200,250 -200,-50" fill="#4488FF" stroke="#333" stroke-width="4"/>
+    <line x1="0" y1="150" x2="-200" y2="50" stroke="#333" stroke-width="2"/>
+    <line x1="0" y1="250" x2="-200" y2="150" stroke="#333" stroke-width="2"/>
+    <line x1="-67" y1="50" x2="-67" y2="250" stroke="#333" stroke-width="2"/>
+    <line x1="-133" y1="0" x2="-133" y2="200" stroke="#333" stroke-width="2"/>
+  </g>
+
+  <!-- App name -->
+  <text x="512" y="850" font-family="Arial, sans-serif" font-size="72" font-weight="bold"
+        fill="#333" text-anchor="middle">Rainer's Cubes</text>
+</svg>
