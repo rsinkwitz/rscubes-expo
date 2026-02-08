@@ -6,6 +6,8 @@ import gsap from "gsap";
 import { GUI } from 'dat.gui';
 import { BoxGeometryEnh } from './BoxGeometryEnh';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader';
+// Import font locally for offline support
+import helvetikerFontData from './assets/helvetiker_regular.typeface.json';
 // import { CustomControls } from './CustomControls';
 
 // Check if we're in a browser environment
@@ -1185,15 +1187,25 @@ function createRotationInfos(visible: boolean, inverse: boolean): void {
   });
   infoGroups = [];
   if (visible) {
+    // Use imported font data directly for offline support
+    console.log('FONT: Loading font data...');
+    console.log('FONT: helvetikerFontData type:', typeof helvetikerFontData);
+    console.log('FONT: helvetikerFontData.glyphs exists:', !!(helvetikerFontData as any).glyphs);
+
+    // loader.parse() converts JSON to Font object correctly
     const loader = new FontLoader();
-    loader.load(require('three/examples/fonts/helvetiker_regular.typeface.json').default, function (font) {
-      createRotationInfoGroup(font, 'F', inverse, 0, 0, 1, 0, new THREE.Vector3(0, 0, 0));
-      createRotationInfoGroup(font, 'B', inverse, 0, 0, -1, 180, new THREE.Vector3(0, 1, 0));
-      createRotationInfoGroup(font, 'R', inverse, 1, 0, 0, 90, new THREE.Vector3(0, 1, 0));
-      createRotationInfoGroup(font, 'L', inverse, -1, 0, 0, -90, new THREE.Vector3(0, 1, 0));
-      createRotationInfoGroup(font, 'U', inverse, 0, 1, 0, -90, new THREE.Vector3(1, 0, 0));
-      createRotationInfoGroup(font, 'D', inverse, 0, -1, 0, 90, new THREE.Vector3(1, 0, 0));
-    });
+    const font = loader.parse(helvetikerFontData as any);
+
+    console.log('FONT: Font parsed, checking font.data...');
+    console.log('FONT: font.data type:', typeof (font as any).data);
+    console.log('FONT: font.data.glyphs exists:', !!((font as any).data && (font as any).data.glyphs));
+
+    createRotationInfoGroup(font, 'F', inverse, 0, 0, 1, 0, new THREE.Vector3(0, 0, 0));
+    createRotationInfoGroup(font, 'B', inverse, 0, 0, -1, 180, new THREE.Vector3(0, 1, 0));
+    createRotationInfoGroup(font, 'R', inverse, 1, 0, 0, 90, new THREE.Vector3(0, 1, 0));
+    createRotationInfoGroup(font, 'L', inverse, -1, 0, 0, -90, new THREE.Vector3(0, 1, 0));
+    createRotationInfoGroup(font, 'U', inverse, 0, 1, 0, -90, new THREE.Vector3(1, 0, 0));
+    createRotationInfoGroup(font, 'D', inverse, 0, -1, 0, 90, new THREE.Vector3(1, 0, 0));
   }
 }
 

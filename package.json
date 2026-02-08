@@ -23,7 +23,7 @@
     "ios": "expo run:ios",
     "web": "npm run prepare-web && expo start --web",
     "bundle": "node scripts/bundle-html.js",
-    "prepare-web": "mkdir -p public && cp assets/webapp/index.html public/cube.html && cp -r assets/webapp/textures public/ 2>/dev/null || true"
+    "prepare-web": "mkdir -p public && cp assets/webapp/index.html public/cube.html && cp -r assets/webapp/textures public/ 2>/dev/null || true && test -f webapp-source/dist-webview/renderer.bundle.js && cp webapp-source/dist-webview/renderer.bundle.js public/renderer.bundle.js || echo 'Run: cd webapp-source && npm run build'"
   },
   "devDependencies": {
     "@types/react": "~19.1.10",

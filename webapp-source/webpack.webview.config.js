@@ -29,14 +29,20 @@ module.exports = {
         }
       },
       {
-        test: /\.(woff(2)?|ttf|eot|svg|typeface\.json)(\?v=\d+\.\d+\.\d+)?$/,
+        // JSON files (including typeface.json) should be imported as objects
+        test: /\.json$/,
+        type: 'json'
+      },
+      {
+        // Other font files use file-loader
+        test: /\.(woff(2)?|ttf|eot|svg)(\?v=\d+\.\d+\.\d+)?$/,
         use: [
           {
             loader: 'file-loader',
             options: {
               name: '[name].[ext]',
               outputPath: 'fonts/',
-              publicPath: 'fonts/', // Relative path for WebView
+              publicPath: 'fonts/',
             }
           }
         ],
