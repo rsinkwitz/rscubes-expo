@@ -75,18 +75,30 @@ export default function App() {
         console.log("✓ Copied: index.html");
 
         // Lade JS-Bundle (als .txt um Metro zu umgehen)
-        // Nein, warte - wir müssen das JS direkt kopieren
-        // Lade das JS-Asset durch fetch und schreibe es
+        console.log("Loading JS bundle asset...");
         const jsAsset = Asset.fromModule(require("./assets/webapp/renderer.bundle.js.txt"));
+        console.log("JS Asset URI:", jsAsset.localUri || "not downloaded yet");
         await jsAsset.downloadAsync();
+        console.log("JS Asset downloaded, URI:", jsAsset.localUri);
 
         // Lese den Inhalt und schreibe als .js
         const jsContent = await FileSystem.readAsStringAsync(jsAsset.localUri);
+        const jsSize = jsContent.length;
+        console.log("JS Content size:", Math.round(jsSize/1024), "KB");
+
         await FileSystem.writeAsStringAsync(
           `${tempDir}renderer.bundle.js`,
           jsContent
         );
-        console.log("✓ Copied: renderer.bundle.js");
+        console.log("✓ Copied: renderer.bundle.js (" + Math.round(jsSize/1024) + " KB)");
+
+        // Check if new code is in bundle
+        if (jsContent.includes('INIT: Cube created')) {
+          console.log("✓ NEW code found in bundle!");
+        } else {
+          console.log("⚠️ OLD code in bundle - need to restart Expo!");
+          console.log("Run: npx expo start -c");
+        }
 
         // Kopiere Texturen
         const texturesDir = `${tempDir}textures/`;
@@ -133,7 +145,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3d81f6" />
           <Text style={styles.loadingText}>Loading Web App...</Text>
@@ -144,7 +156,7 @@ export default function App() {
 
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
         <View style={styles.loadingContainer}>
           <Text style={styles.errorText}>Error: {error}</Text>
           <Text style={styles.errorDetails}>{error}</Text>
@@ -171,7 +183,7 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Control Buttons */}
       <View style={styles.controlsContainer}>
         <View style={styles.buttonRow}>
@@ -256,6 +268,25 @@ export default function App() {
             }
           }, 100);
 
+          // Leite console.log an React Native weiter
+          const originalLog = console.log;
+          console.log = function(...args) {
+            // Rufe original console.log auf
+            originalLog.apply(console, args);
+            // Sende an React Native
+            try {
+              const message = args.map(arg =>
+                typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+              ).join(' ');
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'log',
+                message: message
+              }));
+            } catch (e) {
+              // Ignoriere Fehler beim Weiterleiten
+            }
+          };
+
           // Fange alle Fehler ab
           window.onerror = function(message, source, lineno, colno, error) {
             window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -281,12 +312,14 @@ export default function App() {
 
           // Debugging: Prüfe DOM und Three.js nach dem Laden
           setTimeout(function() {
+            var containerEl = document.getElementById('container');
+            var containerHTML = containerEl ? containerEl.innerHTML : 'not found';
             var debug = {
-              container: document.getElementById('container'),
-              canvas: document.querySelector('canvas'),
+              container: containerEl ? 'exists' : 'not found',
+              canvas: document.querySelector('canvas') ? 'exists' : 'not found',
               THREE: typeof THREE !== 'undefined',
               cube: typeof cube !== 'undefined',
-              containerHTML: document.getElementById('container') ? document.getElementById('container').innerHTML : 'not found'
+              containerHTML: containerHTML.substring(0, 100) + '...'
             };
             console.log('DEBUG INFO:', JSON.stringify(debug, null, 2));
             window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -304,6 +337,9 @@ export default function App() {
               console.error("❌ WebView JS Error:", JSON.stringify(data, null, 2));
             } else if (data.type === 'debug') {
               console.log("🔍 DEBUG INFO:", JSON.stringify(data.data, null, 2));
+            } else if (data.type === 'log') {
+              // Leite console.log aus dem WebView weiter
+              console.log("📱 WebView:", data.message);
             } else {
               console.log("WebView message:", JSON.stringify(data, null, 2));
             }
@@ -319,11 +355,12 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: Platform.OS === 'ios' ? "#f5f5f5" : "#fff",
   },
   controlsContainer: {
     backgroundColor: "#f5f5f5",
-    paddingVertical: 8,
+    paddingTop: 8,
+    paddingBottom: 8,
     paddingHorizontal: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#ddd",

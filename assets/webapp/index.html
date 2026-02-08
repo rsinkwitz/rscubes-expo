@@ -42,7 +42,64 @@
       right: 8px;
       z-index: 990;
     }
-  </style></head>
+  </style>
+  <script>
+    // Console.log forwarding to React Native WebView
+    // This MUST be before renderer.bundle.js loads!
+    (function() {
+      if (typeof window.ReactNativeWebView !== 'undefined') {
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+
+        console.log = function(...args) {
+          originalLog.apply(console, args);
+          try {
+            const message = args.map(arg =>
+              typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+            ).join(' ');
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'log',
+              message: message
+            }));
+          } catch (e) {
+            originalLog('Error forwarding log:', e);
+          }
+        };
+
+        console.warn = function(...args) {
+          originalWarn.apply(console, args);
+          try {
+            const message = args.map(arg =>
+              typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+            ).join(' ');
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'log',
+              message: 'WARN: ' + message
+            }));
+          } catch (e) {}
+        };
+
+        console.error = function(...args) {
+          originalError.apply(console, args);
+          try {
+            const message = args.map(arg =>
+              typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+            ).join(' ');
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'error',
+              message: 'ERROR: ' + message
+            }));
+          } catch (e) {}
+        };
+
+        console.log('✓ Console forwarding initialized in HTML');
+      } else {
+        console.log('ReactNativeWebView not available - running in browser');
+      }
+    })();
+  </script>
+</head>
 <body>
   <div id="sim3x3" class="showOnlyThisOnFullScreen">
     <div id="container" data-bg-color="#b0c4de"></div>

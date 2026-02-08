@@ -78,9 +78,25 @@ const basicMaterials: THREE.MeshStandardMaterial[] = [
 const blackMaterial: THREE.MeshStandardMaterial = new THREE.MeshStandardMaterial({color: 0x202020, roughness: roughness});
 const grayMaterial: THREE.MeshStandardMaterial = new THREE.MeshStandardMaterial({color: 0x808080, roughness: roughness});
 const wireframeMaterial: THREE.MeshStandardMaterial = new THREE.MeshStandardMaterial({color: 0x000000, wireframe: true});
-let silverMaterial: THREE.MeshStandardMaterial;
-let goldMaterial: THREE.MeshStandardMaterial;
-let mirrorMaterials: THREE.MeshStandardMaterial[];
+
+// Initialize silver and gold materials with fallback values (without HDR)
+// Will be updated with HDR environment map when texture loads
+let silverMaterial: THREE.MeshStandardMaterial = new THREE.MeshStandardMaterial({
+  color: 0xc0c0c0,
+  roughness: 0.05,
+  metalness: 1.0
+});
+
+let goldMaterial: THREE.MeshStandardMaterial = new THREE.MeshStandardMaterial({
+  color: 0xffd700,
+  roughness: 0.05,
+  metalness: 1.0
+});
+
+let mirrorMaterials: THREE.MeshStandardMaterial[] = [
+  silverMaterial, silverMaterial, silverMaterial,
+  silverMaterial, silverMaterial, silverMaterial
+];
 
 function init(): void {
   // Expose THREE to global scope for debugging
@@ -119,48 +135,100 @@ function init(): void {
   // Create cube immediately, don't wait for texture
   createCubeImmediately();
 
-  // Try to load texture in background (optional)
-  try {
-    const loader = new RGBELoader();
-    loader.load('textures/rosendal_plains_2_1k.hdr',
-      function (texture) {
-        // Success callback
-        try {
-          texture.mapping = THREE.EquirectangularReflectionMapping;
-          scene.environment = texture;
+  console.log('INIT: Cube created, now loading HDR texture...');
 
-          // Update materials with environment map
-          silverMaterial = new THREE.MeshStandardMaterial({
-            color: 0xc0c0c0,
-            roughness: 0.05,
-            metalness: 1.0,
-            envMap: texture,
-            envMapIntensity: 1.0
-          });
+  // Load HDR texture in background for Mirror Cube reflections
+  const loadEnvironmentTexture = async () => {
+    try {
+      console.log('HDR: Loading environment texture...');
+      const loader = new RGBELoader();
 
-          goldMaterial = new THREE.MeshStandardMaterial({
-            color: 0xffd700,
-            roughness: 0.05,
-            metalness: 1.0,
-            envMap: texture,
-            envMapIntensity: 1.0
-          });
-          mirrorMaterials = [silverMaterial, silverMaterial, silverMaterial, silverMaterial, silverMaterial, silverMaterial];
+      const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+      const texturePath = 'textures/rosendal_plains_2_1k.hdr';
+      const fullTexturePath = baseUrl + texturePath;
 
-          console.log('✓ HDR texture loaded successfully');
-        } catch (e) {
-          console.warn('Error processing texture:', e);
-        }
-      },
-      undefined,
-      function (error) {
-        // Error callback - continue without texture
-        console.log('HDR texture not available, continuing without environment map');
-      }
-    );
-  } catch (e) {
-    console.log('RGBELoader not available, continuing without HDR textures');
-  }
+      // Use XMLHttpRequest instead of fetch (fetch doesn't work with file:// in Android WebView)
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', fullTexturePath, true);
+        xhr.responseType = 'arraybuffer';
+
+        xhr.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            if (percent % 25 === 0) { // Log every 25%
+              console.log('HDR: Loading... ' + percent + '%');
+            }
+          }
+        };
+
+        xhr.onload = () => {
+          // iOS WebView returns status 0 for file:// URLs even on success
+          // Check if we have valid data instead
+          const buffer = xhr.response as ArrayBuffer;
+
+          if ((xhr.status === 200 || xhr.status === 0) && buffer && buffer.byteLength > 0) {
+            try {
+              console.log('HDR: Parsing buffer (' + Math.round(buffer.byteLength / 1024) + ' KB)...');
+              const textureData = loader.parse(buffer);
+
+              const texture = new THREE.DataTexture(
+                textureData.data,
+                textureData.width,
+                textureData.height,
+                THREE.RGBAFormat,
+                textureData.type
+              );
+              texture.minFilter = THREE.LinearFilter;
+              texture.magFilter = THREE.LinearFilter;
+              texture.generateMipmaps = false;
+              texture.needsUpdate = true;
+
+              texture.mapping = THREE.EquirectangularReflectionMapping;
+              scene.environment = texture;
+
+              silverMaterial.envMap = texture;
+              silverMaterial.envMapIntensity = 1.0;
+              silverMaterial.metalness = 1.0;
+              silverMaterial.roughness = 0.05;
+              silverMaterial.needsUpdate = true;
+
+              goldMaterial.envMap = texture;
+              goldMaterial.envMapIntensity = 1.0;
+              goldMaterial.metalness = 1.0;
+              goldMaterial.roughness = 0.05;
+              goldMaterial.needsUpdate = true;
+
+              console.log('HDR: ✓ Environment texture loaded successfully');
+              resolve(texture);
+            } catch (parseError) {
+              console.log('HDR: ERROR - Parse failed:', parseError);
+              reject(parseError);
+            }
+          } else {
+            console.log('HDR: ERROR - HTTP status:', xhr.status, 'Buffer size:', buffer ? buffer.byteLength : 0);
+            reject(new Error('HTTP ' + xhr.status + ' or empty buffer'));
+          }
+        };
+
+        xhr.onerror = () => {
+          console.log('HDR: ERROR - XMLHttpRequest failed');
+          reject(new Error('XMLHttpRequest failed'));
+        };
+
+        xhr.send();
+      });
+    } catch (e) {
+      console.log('HDR: Exception:', e);
+      return Promise.reject(e);
+    }
+  };
+
+  console.log('INIT: Calling loadEnvironmentTexture...');
+  loadEnvironmentTexture().catch(error => {
+    console.log('HDR: Final catch, error:', error);
+  });
+  console.log('INIT: loadEnvironmentTexture called');
 }
 
 function createCubeImmediately(): void {
@@ -916,7 +984,7 @@ function removeNormals(): void {
 }
 
 function applyCubeFaces(): void {
- if (isWireframe) {
+  if (isWireframe) {
     applyCubesWireframe();
   } else if (isShowNumbers) {
     applyCubesNumbered();
@@ -984,6 +1052,7 @@ function setCubeFaceColor(materials: THREE.Material[], index: number, i1: number
   const enabled1 = enabled.all || enabled.faces?.includes(i1);
   const enabled2 = enabled.all || enabled.faces?.includes(i2);
   const sourceMaterials = isMirrorColors ? mirrorMaterials : basicMaterials;
+
   if (index === -1 && enabled1) {
     materials[i1*2] = sourceMaterials[i1];
     materials[i1*2+1] = sourceMaterials[i1];
@@ -1827,7 +1896,12 @@ function toggleNormals(): void {
 }
 
 function toggleMirrorCube(duration = 0.5): void {
-  scaleToMirrorCube(!isMirrorCube, duration).then(() => {isMirrorColors = isMirrorCube; applyCubeFaces()});
+  console.log('MIRROR: Toggling to', !isMirrorCube ? 'ON' : 'OFF');
+  scaleToMirrorCube(!isMirrorCube, duration).then(() => {
+    isMirrorColors = isMirrorCube;
+    applyCubeFaces();
+    console.log('MIRROR: Animation complete, envMap:', silverMaterial.envMap !== null);
+  });
 }
 
 function toggleGold(): void {
@@ -2243,6 +2317,8 @@ console.log('✓ cubeObject exposed to window.cube');
 
 // Initialize the application when DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
+  console.log('Initializing Rubik\'s Cube...');
   init();
   setupEventListeners();
+  console.log('✓ Cube initialized');
 });
