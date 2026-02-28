@@ -238,11 +238,11 @@ npm run build
 ```bash
 cd ..
 # Für Mobile (als .txt)
-cp webapp-source/dist-webview/renderer.bundle.js assets/webapp/renderer.bundle.js.txt
-cp webapp-source/dist-webview/index.html assets/webapp/index.html
+cp webapp-source/dist/renderer.bundle.js assets/webapp/renderer.bundle.js.txt
+cp webapp-source/dist/index.html assets/webapp/index.html
 
 # Für Web (als .js)
-cp webapp-source/dist-webview/renderer.bundle.js public/renderer.bundle.js
+cp webapp-source/dist/renderer.bundle.js public/renderer.bundle.js
 ```
 
 ### 3. Web starten:
