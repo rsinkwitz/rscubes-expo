@@ -39,6 +39,7 @@ let isShowNumbers = false;
 let showAxes = false;
 let showRotationInfos = false;
 let isWireframe = false;
+let isNormals = false;
 let isHideNext = false;
 let is2x2 = false;
 let isMirrorCube = false;
@@ -49,7 +50,6 @@ let testIndex: number = 0;
 let isShowOneCube = false;
 let isViewRight = true;
 let viewUp = 1;
-let isNormals = false;
 let isGold = false;
 
 const cubeSize: number = 0.98;
@@ -57,6 +57,8 @@ const cubeStep: number = 1;
 const roughness: number = 0.2;
 const objectWidth = 6.5;
 const objectHeight = 6.5;
+
+let initialCameraDistance: number = 0; // Initial camera Z position for reset
 
 let numAnims: number = 0; // number of running rotation animations (one for each cube piece)
 let morphDuration: number = 0; // duration of rotation animation in seconds
@@ -123,6 +125,10 @@ function init(): void {
   const initialDistance = calculateDistanceToFitObject(camera, objectWidth, objectHeight);
   camera.position.z = initialDistance;
   
+  // Save initial camera distance for reset
+  initialCameraDistance = initialDistance;
+  console.log('📷 Initial camera distance saved:', initialCameraDistance.toFixed(2));
+
   scene = new THREE.Scene();
   renderer = new THREE.WebGLRenderer();
   renderer.setSize(cubeDiv.clientWidth, cubeDiv.clientHeight);
@@ -534,6 +540,20 @@ function toggleAxes(): void {
       child.visible = showAxes;
     }
   });
+  sendStateUpdate({ showAxes });
+}
+
+
+function setAxes(value: boolean): void {
+  if (showAxes !== value) {
+    showAxes = value;
+    baseGroup.children.forEach((child) => {
+      if (child instanceof THREE.AxesHelper) {
+        child.visible = showAxes;
+      }
+    });
+    sendStateUpdate({ showAxes });
+  }
 }
 
 function toggleShowOneCube(): void {
@@ -549,20 +569,79 @@ function showAll(show: boolean): void {
   });
 }
 
-function toggleRotationInfos(): void {
+function toggleTurnLetters(): void {
   showRotationInfos = !showRotationInfos;
   createRotationInfos(showRotationInfos, false);
+  sendStateUpdate({ showRotationInfos });
+}
+
+function setTurnLetters(value: boolean): void {
+  if (showRotationInfos !== value) {
+    showRotationInfos = value;
+    createRotationInfos(showRotationInfos, false);
+    sendStateUpdate({ showRotationInfos });
+  }
+}
+
+function showHelp(): void {
+  // Toggle help overlay (F1) - shows keyboard shortcuts
+  const helpDiv = document.getElementById('keyHelp');
+  if (helpDiv) {
+    const isVisible = window.getComputedStyle(helpDiv).display !== 'none';
+    helpDiv.style.display = isVisible ? 'none' : 'block';
+    console.log('❓ Help overlay:', isVisible ? 'OFF' : 'ON');
+  }
 }
 
 function toggleWireframe(): void {
   isWireframe = !isWireframe;
+  // Cross-update: If Wireframe is ON, turn Numbers OFF
+  if (isWireframe) {
+    isShowNumbers = false;
+  }
   applyCubeFaces();
+  sendStateUpdate({ isWireframe, isShowNumbers });
+}
+
+function setWireframe(value: boolean): void {
+  if (isWireframe !== value) {
+    isWireframe = value;
+    // Cross-update: If Wireframe is ON, turn Numbers OFF
+    if (isWireframe) {
+      isShowNumbers = false;
+    }
+    applyCubeFaces();
+    sendStateUpdate({ isWireframe, isShowNumbers });
+  }
 }
 
 function toggleNumbers(): void {
-  isWireframe = false;
   isShowNumbers = !isShowNumbers;
+  // Cross-update: If Numbers is ON, turn Wireframe OFF
+  if (isShowNumbers) {
+    isWireframe = false;
+  }
   applyCubeFaces();
+  sendStateUpdate({ isWireframe, isShowNumbers });
+}
+
+function setNumbers(value: boolean): void {
+  if (isShowNumbers !== value) {
+    isShowNumbers = value;
+    // Cross-update: If Numbers is ON, turn Wireframe OFF
+    if (isShowNumbers) {
+      isWireframe = false;
+    }
+    applyCubeFaces();
+    sendStateUpdate({ isWireframe, isShowNumbers });
+  }
+}
+
+function setNormals(value: boolean): void {
+  if (isNormals !== value) {
+    // Call toggle to switch state (it handles add/remove)
+    toggleNormals();
+  }
 }
 
 interface CubeRotationBySelection {
@@ -1843,8 +1922,19 @@ function resetView(): void {
   isViewRight = true;
   viewUp = 1;
   tumble = false;
-  setViewRotation(baseGroup); 
+  setViewRotation(baseGroup);
+
+  // Reset camera position to initial distance
+  camera.position.set(0, 0, initialCameraDistance);
+
+  // Reset controls target and state
+  controls.target.set(0, 0, 0);
   controls.reset();
+
+  console.log('📷 Camera reset to initial position: z=' + initialCameraDistance.toFixed(2));
+
+  // Send state update so UI toggle reflects the reset
+  sendStateUpdate({ tumble: false });
 }
 
 function setViewRotation(group: THREE.Group): void {
@@ -1894,8 +1984,28 @@ function toggleViewRight() {
   setBasegroupRotation();
 }
 
+// Helper function to send state updates (works on Web and React Native)
+function sendStateUpdate(stateObject: any) {
+  const isReactNative = typeof (window as any).ReactNativeWebView !== 'undefined';
+  const message = JSON.stringify({ type: 'stateUpdate', ...stateObject });
+
+  if (isReactNative) {
+    (window as any).ReactNativeWebView.postMessage(message);
+  } else if (window.parent) {
+    window.parent.postMessage(message, '*');
+  }
+}
+
 function toggleTumble() {
   tumble = !tumble;
+  sendStateUpdate({ tumble });
+}
+
+function setTumble(value: boolean) {
+  if (tumble !== value) {
+    tumble = value;
+    sendStateUpdate({ tumble });
+  }
 }
 
 function toggleNormals(): void {
@@ -1905,6 +2015,7 @@ function toggleNormals(): void {
     addNormals();
   }
   isNormals = !isNormals;
+  sendStateUpdate({ isNormals });
 }
 
 function toggleMirrorCube(duration = 0.5): void {
@@ -1913,6 +2024,7 @@ function toggleMirrorCube(duration = 0.5): void {
     isMirrorColors = isMirrorCube;
     applyCubeFaces();
     console.log('MIRROR: Animation complete, envMap:', silverMaterial.envMap !== null);
+    sendStateUpdate({ isMirrorCube });
   });
 }
 
@@ -1924,19 +2036,33 @@ function toggleGold(): void {
     mirrorMaterials = [silverMaterial, silverMaterial, silverMaterial, silverMaterial, silverMaterial, silverMaterial];
   }
   applyCubeFaces();
+  sendStateUpdate({ isGold });
+}
+
+function setGold(value: boolean): void {
+  if (isGold !== value) {
+    isGold = value;
+    if (isGold) {
+      mirrorMaterials = [goldMaterial, goldMaterial, goldMaterial, goldMaterial, goldMaterial, goldMaterial];
+    } else {
+      mirrorMaterials = [silverMaterial, silverMaterial, silverMaterial, silverMaterial, silverMaterial, silverMaterial];
+    }
+    applyCubeFaces();
+    sendStateUpdate({ isGold });
+  }
 }
 
 function setupGui(): GUI {
   const gui = new GUI({closed: false, width: 100, autoPlace: false});
   gui.close();
   // gui.add( document, 'title' ).name('');
-  gui.add({ fun: () => toggleRotationInfos() },'fun').name('Help [F1]');
+  gui.add({ fun: () => showHelp() },'fun').name('Help [F1]');
   const shapeFolder = gui.addFolder('Shape')
   shapeFolder.add({ fun: () => morphCombined(0) },'fun').name('3x3 [F2]');
   shapeFolder.add({ fun: () => morphCombined(1) },'fun').name('2x2 [F3]');
   shapeFolder.add({ fun: () => morphCombined(3) },'fun').name('Pyramorphix [F4]');
   shapeFolder.add({ fun: () => morphCombined(2) },'fun').name('Poke-like [F5]');
-  shapeFolder.add({ fun: () => toggleMirrorCube() },'fun').name('Mirror [F8]');
+  shapeFolder.add({ fun: () => toggleMirrorCube() },'fun').name('Mirror [7]');
 
   const looksFolder = gui.addFolder('View')
   looksFolder.add({ fun: () => toggleViewRight() },'fun').name('Left/Right [1]');
@@ -1952,7 +2078,7 @@ function setupGui(): GUI {
   const rotFolder = gui.addFolder('Rotations')
   rotFolder.add({ fun: () => undoOperation() },'fun').name('Undo [^z,9]');
   rotFolder.add({ fun: () => shuffleOperation() },'fun').name('Shuffle [F9]');
-  rotFolder.add({ fun: () => resetMain() },'fun').name('Reset [F10]');
+  rotFolder.add({ fun: () => resetMain() },'fun').name('Reset [F8]');
   rotFolder.add({ fun: () => rotateByButton('l') },'fun').name('Left [l]');
   rotFolder.add({ fun: () => rotateByButton('m') },'fun').name('Middle [m]');
   rotFolder.add({ fun: () => rotateByButton('r') },'fun').name('Right [r]');
@@ -1978,7 +2104,15 @@ function onKeyDown(event: KeyboardEvent): void {
   let decodedKey = null;
   switch (event.key) {
     case "F1":
-      toggleRotationInfos();
+      showHelp();
+      break;
+    case "Escape":
+      // Close help overlay if open
+      const helpDiv = document.getElementById('keyHelp');
+      if (helpDiv && window.getComputedStyle(helpDiv).display !== 'none') {
+        helpDiv.style.display = 'none';
+        console.log('❓ Help overlay closed via ESC');
+      }
       break;
     case "F2":
       morphCombined(0);
@@ -2001,16 +2135,18 @@ function onKeyDown(event: KeyboardEvent): void {
       applyCubeFaces();
       break;
     case "F8":
-      toggleMirrorCube();
+      resetMain();
       break;
     case "F9":
       shuffleOperation();
       break;
     case "F10":
-      resetMain();
-      break;
-    case "F12":
-      window.ipcRenderer.send('open-dev-tools');
+      // Toggle menu (send message to parent)
+      if (window.parent) {
+        window.parent.postMessage(JSON.stringify({
+          type: 'menuToggleRequest'
+        }), '*');
+      }
       break;
     case "0":
       resetView();
@@ -2033,15 +2169,15 @@ function onKeyDown(event: KeyboardEvent): void {
     case "6":
       showAll(true);
       break;
+    case "7":
+      toggleMirrorCube();
+      break;
     case "8":
       redoOperation();
       break;
     case "9":
       undoOperation();
       break;  
-    case "q":
-      window.ipcRenderer.send('app-quit');
-      break;
     case "a":
       toggleAxes();
       break;
@@ -2174,6 +2310,9 @@ document.addEventListener("keydown", onKeyDown);
 
 let shiftKeyDown = false;
 
+// Global flag to prevent setupEventListeners from running twice
+let setupEventListenersCalled = false;
+
 
 // Function to calculate the distance required to fit the object
 function calculateDistanceToFitObject(camera: THREE.PerspectiveCamera, objectWidth: number, objectHeight: number): number {
@@ -2205,6 +2344,14 @@ function updateCamera(camera: THREE.PerspectiveCamera, objectWidth: number, obje
 
 // Setup event listeners (called after init)
 function setupEventListeners() {
+  // Guard: Prevent double execution
+  if (setupEventListenersCalled) {
+    console.warn('⚠️ setupEventListeners already called - SKIPPING to prevent double registration!');
+    return;
+  }
+  setupEventListenersCalled = true;
+  console.log('🔧 setupEventListeners() - Running for the FIRST and ONLY time');
+
   // Keyboard event handler
   document.addEventListener("keydown", onKeyDown);
 
@@ -2239,8 +2386,25 @@ function setupEventListeners() {
 
   // Listen for messages from React Native
   // React Native WebView uses document 'message' event
+  let lastMessageData: string | null = null; // Track last processed message
+
   const messageHandler = (event: any) => {
+    // Guard: Prevent double execution of same message content
+    const messageData = typeof event.data === 'string' ? event.data : JSON.stringify(event.data);
+
+    if (messageData === lastMessageData) {
+      console.warn('⚠️ Duplicate message detected - SKIPPING!');
+      return;
+    }
+
+    lastMessageData = messageData;
     console.log('📨 Message received:', event.data);
+
+    // Reset after short delay to allow next different message
+    setTimeout(() => {
+      lastMessageData = null;
+    }, 50);
+
     try {
       let data;
 
@@ -2278,6 +2442,94 @@ function setupEventListeners() {
           case 'help':
             cubeObject.help();
             break;
+          // View actions
+          case 'toggleViewRight':
+            toggleViewRight();
+            break;
+          case 'toggleViewBack':
+            toggleViewBack();
+            break;
+          case 'toggleViewUnder':
+            toggleViewUnder();
+            break;
+          case 'resetView':
+            resetView();
+            break;
+          // Set actions with explicit values (for UI Switches)
+          case 'setTumble':
+            setTumble(data.params);
+            break;
+          case 'setWireframe':
+            setWireframe(data.params);
+            break;
+          case 'setGold':
+            setGold(data.params);
+            break;
+          case 'setTurnLetters':
+            setTurnLetters(data.params);
+            break;
+          case 'setAxes':
+            setAxes(data.params);
+            break;
+          case 'setNumbers':
+            setNumbers(data.params);
+            break;
+          case 'setNormals':
+            setNormals(data.params);
+            break;
+          // Legacy toggle actions (for keyboard shortcuts)
+          case 'toggleTumble':
+            toggleTumble();
+            break;
+          case 'toggleWireframe':
+            toggleWireframe();
+            break;
+          case 'toggleGold':
+            toggleGold();
+            break;
+          case 'toggleAxes':
+            toggleAxes();
+            break;
+          case 'toggleNumbers':
+            toggleNumbers();
+            break;
+          case 'toggleNormals':
+            toggleNormals();
+            break;
+          case 'toggleTurnLetters':
+            toggleTurnLetters();
+            break;
+          // Color presets
+          case 'setPyraColors':
+            setPyraColors();
+            break;
+          case 'setDefaultColors':
+            setDefaultColors();
+            break;
+          // Help
+          case 'showHelp':
+            showHelp();
+            break;
+          case 'toggleTurnLetters':
+            toggleTurnLetters();
+            break;
+          // Keyboard events forwarded from parent
+          case 'keydown':
+            if (data.params && data.params.key) {
+              // Simulate keyboard event by calling onKeyDown with the key
+              const fakeEvent = {
+                key: data.params.key,
+                code: data.params.code,
+                ctrlKey: data.params.ctrlKey || false,
+                shiftKey: data.params.shiftKey || false,
+                altKey: data.params.altKey || false,
+                metaKey: data.params.metaKey || false,
+                preventDefault: () => {}
+              } as KeyboardEvent;
+              onKeyDown(fakeEvent);
+              console.log('⌨️ Processed forwarded key:', data.params.key);
+            }
+            break;
           default:
             console.warn('Unknown action:', data.action);
         }
@@ -2287,13 +2539,18 @@ function setupEventListeners() {
     }
   };
 
-  // Register message handler on document (React Native WebView standard)
-  document.addEventListener('message', messageHandler);
+  // Register message handler (setupEventListeners runs only once now due to guard)
+  const isReactNative = typeof (window as any).ReactNativeWebView !== 'undefined';
 
-  // Also try window as fallback
-  (window as any).addEventListener('message', messageHandler);
+  if (isReactNative) {
+    document.addEventListener('message', messageHandler, { once: false });
+    console.log('✓ Message handler registered on DOCUMENT (React Native)');
+  } else {
+    window.addEventListener('message', messageHandler, { once: false });
+    console.log('✓ Message handler registered on WINDOW (Web iframe)');
+  }
 
-  console.log('✓ Message handlers registered on document and window');
+  console.log('✓ setupEventListeners COMPLETE - Guard prevents re-execution');
 }
 
 const cubeObject = {
@@ -2319,7 +2576,7 @@ const cubeObject = {
   },
   help: () => {
     console.log('🎲 help() called');
-    toggleRotationInfos();
+    showHelp();
   },
 };
 

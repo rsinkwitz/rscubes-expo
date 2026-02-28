@@ -8,7 +8,7 @@ module.exports = {
   },
   output: {
     filename: '[name].bundle.js',
-    path: path.resolve(__dirname, 'dist-webview'),
+    path: path.resolve(__dirname, 'dist'),
     publicPath: '', // Empty string for relative paths (important for WebView!)
     // REMOVED library config - we don't want immediate execution
   },

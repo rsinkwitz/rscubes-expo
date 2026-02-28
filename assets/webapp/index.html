@@ -42,6 +42,65 @@
       right: 8px;
       z-index: 990;
     }
+    /* Help overlay (F1) - positioned at right edge like PaDIPS */
+    #keyHelp {
+      display: none;
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      color: #333;
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      z-index: 10000;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 13px;
+      line-height: 1.8;
+      width: 350px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+    }
+    #keyHelp h2 {
+      margin: 0 0 12px 0;
+      font-size: 18px;
+      color: #4CAF50;
+      font-weight: 600;
+      padding-bottom: 8px;
+      border-bottom: 2px solid rgba(76, 175, 80, 0.3);
+    }
+    #keyHelp .help-section {
+      margin-bottom: 10px;
+    }
+    #keyHelp .help-section h3 {
+      margin: 8px 0 4px 0;
+      font-size: 14px;
+      color: #2196F3;
+      font-weight: 600;
+    }
+    #keyHelp .help-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 2px 0;
+      padding: 2px 4px;
+    }
+    #keyHelp .help-key {
+      color: #FF9800;
+      font-weight: bold;
+      font-family: 'Courier New', monospace;
+      background: rgba(255, 152, 0, 0.1);
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+    #keyHelp .help-close {
+      text-align: center;
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+      font-size: 11px;
+      color: #999;
+      font-style: italic;
+    }
   </style>
   <script>
     // Console.log forwarding to React Native WebView
@@ -104,6 +163,68 @@
   <div id="sim3x3" class="showOnlyThisOnFullScreen">
     <div id="container" data-bg-color="#b0c4de"></div>
   </div>
+
+  <!-- Help Overlay (F1) -->
+  <div id="keyHelp">
+    <h2>🧊 RS Cubes - Keyboard Shortcuts</h2>
+
+    <div class="help-section">
+      <h3>Shape</h3>
+      <div class="help-row"><span class="help-key">F2</span><span>3×3 Cube</span></div>
+      <div class="help-row"><span class="help-key">F3</span><span>2×2 Cube</span></div>
+      <div class="help-row"><span class="help-key">F4</span><span>Pyramorphix</span></div>
+      <div class="help-row"><span class="help-key">F5</span><span>Poke-like</span></div>
+      <div class="help-row"><span class="help-key">7</span><span>Toggle Mirror</span></div>
+    </div>
+
+    <div class="help-section">
+      <h3>View</h3>
+      <div class="help-row"><span class="help-key">0</span><span>Reset View</span></div>
+      <div class="help-row"><span class="help-key">1</span><span>Left/Right</span></div>
+      <div class="help-row"><span class="help-key">2</span><span>Backside</span></div>
+      <div class="help-row"><span class="help-key">3</span><span>Underside</span></div>
+      <div class="help-row"><span class="help-key">t</span><span>Toggle Tumble</span></div>
+      <div class="help-row"><span class="help-key">w</span><span>Toggle Wireframe</span></div>
+      <div class="help-row"><span class="help-key">F6</span><span>Pyra Colors</span></div>
+      <div class="help-row"><span class="help-key">F7</span><span>Cube Colors</span></div>
+      <div class="help-row"><span class="help-key">g</span><span>Gold Mirror</span></div>
+    </div>
+
+    <div class="help-section">
+      <h3>Actions</h3>
+      <div class="help-row"><span class="help-key">F8</span><span>Reset Cube</span></div>
+      <div class="help-row"><span class="help-key">F9</span><span>Shuffle</span></div>
+      <div class="help-row"><span class="help-key">9</span><span>Undo</span></div>
+      <div class="help-row"><span class="help-key">8</span><span>Redo</span></div>
+    </div>
+
+    <div class="help-section">
+      <h3>Rotations</h3>
+      <div class="help-row"><span class="help-key">Face</span><span>F R U B L D</span></div>
+      <div class="help-row"><span class="help-key">+ Alt/⌥</span><span>2-layer rotation</span></div>
+      <div class="help-row"><span class="help-key">Slice</span><span>M E S</span></div>
+      <div class="help-row"><span class="help-key">Whole</span><span>X Y Z</span></div>
+      <div style="margin-top: 6px; font-size: 11px; color: #666; font-style: italic;">
+        Letters = clockwise, Shift = inverse
+      </div>
+    </div>
+
+    <div class="help-section">
+      <h3>Debug</h3>
+      <div class="help-row"><span class="help-key">a</span><span>Toggle Axes</span></div>
+      <div class="help-row"><span class="help-key">n</span><span>Toggle Numbers</span></div>
+      <div class="help-row"><span class="help-key">4</span><span>Toggle Normals</span></div>
+    </div>
+
+    <div class="help-section">
+      <h3>UI</h3>
+      <div class="help-row"><span class="help-key">F1</span><span>Toggle Help</span></div>
+      <div class="help-row"><span class="help-key">F10</span><span>Toggle Menu</span></div>
+    </div>
+
+    <div class="help-close">Press F1 or ESC to close</div>
+  </div>
+
   <script src="renderer.bundle.js" defer></script>
 </body>
 </html>
