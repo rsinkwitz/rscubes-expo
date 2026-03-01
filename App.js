@@ -139,25 +139,13 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
         }
 
         try {
-          const texture1 = Asset.fromModule(require("./assets/webapp/textures/autumn_field_puresky_1k.hdr"));
-          await texture1.downloadAsync();
-          await FileSystem.copyAsync({
-            from: texture1.localUri,
-            to: `${texturesDir}autumn_field_puresky_1k.hdr`
-          });
-          console.log("✓ Copied: autumn_field_puresky_1k.hdr");
-        } catch (err) {
-          console.warn("Could not copy texture:", err.message);
-        }
-
-        try {
-          const texture2 = Asset.fromModule(require("./assets/webapp/textures/rosendal_plains_2_1k.hdr"));
+          const texture2 = Asset.fromModule(require("./assets/webapp/textures/rosendal_plains_2_1k-rot.hdr"));
           await texture2.downloadAsync();
           await FileSystem.copyAsync({
             from: texture2.localUri,
-            to: `${texturesDir}rosendal_plains_2_1k.hdr`
+            to: `${texturesDir}rosendal_plains_2_1k-rot.hdr`
           });
-          console.log("✓ Copied: rosendal_plains_2_1k.hdr");
+          console.log("✓ Copied: rosendal_plains_2_1k-rot.hdr");
         } catch (err) {
           console.warn("Could not copy texture:", err.message);
         }

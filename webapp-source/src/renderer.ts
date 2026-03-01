@@ -152,7 +152,7 @@ function init(): void {
       const loader = new RGBELoader();
 
       const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-      const texturePath = 'textures/rosendal_plains_2_1k.hdr';
+      const texturePath = 'textures/rosendal_plains_2_1k-rot.hdr';
       const fullTexturePath = baseUrl + texturePath;
 
       // Use XMLHttpRequest instead of fetch (fetch doesn't work with file:// in Android WebView)
