@@ -139,9 +139,9 @@ export function UnifiedMenuOverlay({
   const bgColor = isDarkMode ? '#1a1a1a' : '#ffffff';
   const textColor = isDarkMode ? '#e0e0e0' : '#333';
 
-  // Menu width - same as PaDIPS
-  const menuWidth = Platform.OS === 'web' ? 280 : '70%';
-  const maxMenuWidth = 350;
+  // Menu width - wider on Web for more buttons, same % on Mobile
+  const menuWidth = Platform.OS === 'web' ? 320 : '70%';
+  const maxMenuWidth = 380;
 
   // Menu content - shared between Web and Mobile
   const menuContentJSX = (
@@ -156,7 +156,7 @@ export function UnifiedMenuOverlay({
           backgroundColor: bgColor,
           paddingTop: insets.top,
           paddingBottom: insets.bottom + 20, // Mehr Platz unten für Mobile Portrait
-          paddingLeft: insets.left + 10,
+          paddingLeft: Platform.OS === 'web' ? (insets.left + 10) : (insets.left + 4), // Weniger Left-Padding auf Mobile
           paddingRight: insets.right + 10,
           pointerEvents: 'auto', // Menu Panel fängt Touch-Events
         }
@@ -293,6 +293,18 @@ export function UnifiedMenuOverlay({
               <View style={{ marginTop: 6 }}>
                 <Text style={[styles.subLabel, { color: textColor }]}>Quick View (while solving)</Text>
                 <View style={styles.buttonRow}>
+                  <TouchableOpacity
+                    style={styles.smallButton}
+                    onPress={() => sendToWebView && sendToWebView('rotateByButton', 'y')}
+                  >
+                    <Text style={styles.smallButtonText}>Y+</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.smallButton}
+                    onPress={() => sendToWebView && sendToWebView('rotateByButton', 'Y')}
+                  >
+                    <Text style={styles.smallButtonText}>Y-</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.smallButton}
                     onPress={() => sendToWebView && sendToWebView('toggleViewRight')}
@@ -486,7 +498,7 @@ const styles = StyleSheet.create({
   },
   menuContent: {
     flex: 1,
-    padding: 8,
+    padding: 6,
   },
   section: {
     marginBottom: 4,
@@ -581,12 +593,12 @@ const styles = StyleSheet.create({
   // Small Buttons (for view controls)
   smallButton: {
     backgroundColor: '#2196F3',
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     paddingVertical: 6,
     borderRadius: 4,
-    marginHorizontal: 2,
+    marginHorizontal: 1,
     marginVertical: 2,
-    minWidth: 45,
+    minWidth: 42,
     alignItems: 'center',
   },
   smallButtonText: {

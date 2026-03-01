@@ -223,6 +223,10 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
             // Menu toggle requested from WebView (e.g., via keyboard shortcut F10)
             console.log('📱 Menu toggle requested from WebView');
             setShowMenu(prev => !prev);
+          } else if (data.type === 'menuCloseRequest') {
+            // Menu close requested from WebView (e.g., click on background)
+            console.log('🖱️ Menu close requested from WebView');
+            setShowMenu(false);
           } else if (data.type === 'stateUpdate') {
             // State update from WebView (toggle states)
             console.log('🔄 State update from WebView:', data);
@@ -267,6 +271,20 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
   useEffect(() => {
     if (Platform.OS === "web") {
       const handleKeyDown = (event) => {
+        // Don't forward browser dev tools keys
+        const devToolsKeys = ['F5', 'F12'];
+        const isDevToolsShortcut = (
+          devToolsKeys.includes(event.key) ||
+          (event.key === 'I' && (event.ctrlKey || event.metaKey) && event.shiftKey) || // Ctrl+Shift+I / Cmd+Shift+I
+          (event.key === 'J' && (event.ctrlKey || event.metaKey) && event.shiftKey) || // Ctrl+Shift+J / Cmd+Shift+J
+          (event.key === 'C' && (event.ctrlKey || event.metaKey) && event.shiftKey)    // Ctrl+Shift+C / Cmd+Shift+C
+        );
+
+        if (isDevToolsShortcut) {
+          // Let browser handle dev tools shortcuts
+          return;
+        }
+
         // Escape key to close menu (use ref to get current state)
         if (event.key === 'Escape') {
           if (showMenuRef.current) {
@@ -300,7 +318,7 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
             }
           }), '*');
 
-          // Prevent default for known shortcuts to avoid browser actions
+          // Prevent default for known shortcuts to avoid browser actions (but not dev tools)
           const shortcuts = ['F1', 'F10', 'F11'];
           if (shortcuts.includes(event.key)) {
             event.preventDefault();
@@ -503,6 +521,9 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
               if (data.type === 'menuToggleRequest') {
                 console.log('📱 Menu toggle requested from WebView');
                 setShowMenu(prev => !prev);
+              } else if (data.type === 'menuCloseRequest') {
+                console.log('🖱️ Menu close requested from WebView');
+                setShowMenu(false);
               } else if (data.type === 'stateUpdate') {
                 console.log('🔄 State update from WebView:', data);
                 if (data.tumble !== undefined) setTumble(data.tumble);

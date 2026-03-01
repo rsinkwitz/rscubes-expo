@@ -34,6 +34,10 @@ let renderer: THREE.WebGLRenderer;
 let gui: GUI;
 let baseGroup: THREE.Group;
 
+// Save camera reset position (TrackballControls doesn't have saveState())
+let resetCameraPosition: THREE.Vector3;
+let resetCameraTarget: THREE.Vector3;
+
 let tumble = false;
 let isShowNumbers = false;
 let showAxes = false;
@@ -58,7 +62,6 @@ const roughness: number = 0.2;
 const objectWidth = 6.5;
 const objectHeight = 6.5;
 
-let initialCameraDistance: number = 0; // Initial camera Z position for reset
 
 let numAnims: number = 0; // number of running rotation animations (one for each cube piece)
 let morphDuration: number = 0; // duration of rotation animation in seconds
@@ -125,9 +128,6 @@ function init(): void {
   const initialDistance = calculateDistanceToFitObject(camera, objectWidth, objectHeight);
   camera.position.z = initialDistance;
   
-  // Save initial camera distance for reset
-  initialCameraDistance = initialDistance;
-  console.log('📷 Initial camera distance saved:', initialCameraDistance.toFixed(2));
 
   scene = new THREE.Scene();
   renderer = new THREE.WebGLRenderer();
@@ -259,7 +259,7 @@ function createCubeImmediately(): void {
   controls = new TrackballControls(camera, renderer.domElement);
   controls.rotateSpeed = 2.0;
   controls.keys = ['KeyA', 'KeyW', 'KeyQ'];
-  resetView();
+  // resetView() is called AFTER updateCamera() initializes reset variables
   controls.update();
 
   // Add lights
@@ -271,6 +271,14 @@ function createCubeImmediately(): void {
 
   // Initial camera update
   updateCamera(camera, objectWidth, objectHeight);
+
+  // Initialize and save camera position for reset (TrackballControls doesn't have saveState())
+  resetCameraPosition = camera.position.clone();
+  resetCameraTarget = controls.target.clone();
+  console.log('📷 Initial camera position saved for reset:', resetCameraPosition.z.toFixed(2));
+
+  // NOW call resetView() after reset variables are initialized
+  resetView();
 
   // Start rendering
   animate();
@@ -1924,14 +1932,23 @@ function resetView(): void {
   tumble = false;
   setViewRotation(baseGroup);
 
-  // Reset camera position to initial distance
-  camera.position.set(0, 0, initialCameraDistance);
+  // Reset camera to saved position (from init or last resize)
+  // Only if resetCameraPosition has been initialized (not on first call during init)
+  if (resetCameraPosition) {
+    const beforePos = camera.position.clone();
+    camera.position.copy(resetCameraPosition);
+    controls.target.copy(resetCameraTarget);
+    console.log('📷 View reset: Camera BEFORE:',
+                '(' + beforePos.x.toFixed(2) + ', ' + beforePos.y.toFixed(2) + ', ' + beforePos.z.toFixed(2) + ')');
+    console.log('📷 View reset: Camera RESTORED:',
+                '(' + camera.position.x.toFixed(2) + ', ' + camera.position.y.toFixed(2) + ', ' + camera.position.z.toFixed(2) + ')');
+  } else {
+    console.log('📷 View reset: Skip camera restore (not initialized yet)');
+  }
 
-  // Reset controls target and state
-  controls.target.set(0, 0, 0);
-  controls.reset();
-
-  console.log('📷 Camera reset to initial position: z=' + initialCameraDistance.toFixed(2));
+  // DO NOT call controls.reset() - it would override the camera position we just restored!
+  // controls.reset() resets to the position saved by TrackballControls at init
+  // We handle camera reset manually above
 
   // Send state update so UI toggle reflects the reset
   sendStateUpdate({ tumble: false });
@@ -2382,6 +2399,68 @@ function setupEventListeners() {
     updateCamera(camera, objectWidth, objectHeight);
     renderer.setSize(cubeDiv!.clientWidth, cubeDiv!.clientHeight);
     controls.handleResize();
+
+    // Save the new camera position for reset
+    resetCameraPosition = camera.position.clone();
+    resetCameraTarget = controls.target.clone();
+    console.log('📐 Resize: Camera position saved:',
+                '(' + resetCameraPosition.x.toFixed(2) + ', ' +
+                resetCameraPosition.y.toFixed(2) + ', ' +
+                resetCameraPosition.z.toFixed(2) + ')');
+  });
+
+  // Tap handler for closing menu when tapping on background (with drag threshold)
+  // On mobile, it's hard to tap without small drag movements
+  let pointerDownPos: { x: number; y: number } | null = null;
+  const TAP_THRESHOLD = 10; // pixels - if movement is less than this, it's considered a tap
+
+  renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
+    pointerDownPos = { x: event.clientX, y: event.clientY };
+  });
+
+  renderer.domElement.addEventListener('pointerup', (event: PointerEvent) => {
+    if (!pointerDownPos) return;
+
+    // Calculate distance moved
+    const dx = event.clientX - pointerDownPos.x;
+    const dy = event.clientY - pointerDownPos.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Reset pointer down position
+    pointerDownPos = null;
+
+    // Only treat as tap if movement is below threshold
+    if (distance > TAP_THRESHOLD) {
+      // console.log('👉 Drag detected (' + distance.toFixed(1) + 'px), not a tap');
+      return;
+    }
+
+    // Use raycaster to check if we hit a cube piece
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    // Calculate mouse position in normalized device coordinates (-1 to +1)
+    mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
+    mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(baseGroup.children, true);
+
+    // If no intersection with cube pieces, send menu close request
+    if (intersects.length === 0) {
+      console.log('🖱️ Tapped on background (moved ' + distance.toFixed(1) + 'px) - requesting menu close');
+      const isReactNative = typeof (window as any).ReactNativeWebView !== 'undefined';
+
+      if (isReactNative) {
+        (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'menuCloseRequest'
+        }));
+      } else if (window.parent) {
+        window.parent.postMessage(JSON.stringify({
+          type: 'menuCloseRequest'
+        }), '*');
+      }
+    }
   });
 
   // Listen for messages from React Native
@@ -2454,6 +2533,9 @@ function setupEventListeners() {
             break;
           case 'resetView':
             resetView();
+            break;
+          case 'rotateByButton':
+            rotateByButton(data.params);
             break;
           // Set actions with explicit values (for UI Switches)
           case 'setTumble':
