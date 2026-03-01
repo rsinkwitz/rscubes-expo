@@ -12,8 +12,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 /**
  * Tap Zones (bottom corners) - Opens menu
+ * Tap zones are always active when menu is closed
+ * Indicators only show temporarily (controlled by showIndicators)
  */
-export function TapZones({ onTapLeft, onTapRight, showIndicators = false }) {
+export function TapZones({ onTapLeft, onTapRight, showIndicators = false, visible = true }) {
   const insets = useSafeAreaInsets();
 
   // Calculate bottom position: base (20px) + safe area inset
@@ -23,6 +25,9 @@ export function TapZones({ onTapLeft, onTapRight, showIndicators = false }) {
   React.useEffect(() => {
     console.log('👁️ TapZones: showIndicators =', showIndicators, 'bottomPosition =', bottomPosition);
   }, [showIndicators]);
+
+  // Don't render tap zones when not visible (e.g., when menu is open)
+  if (!visible) return null;
 
   return (
     <>
@@ -246,9 +251,15 @@ export function UnifiedMenuOverlay({
                 👁️ View
               </Text>
 
-              {/* View Toggles */}
-              <View style={styles.toggleGroup}>
-                <View style={styles.toggleItem}>
+              {/* View Toggles - First row: Tumble and Turn Letters in one horizontal row (or stacked in portrait) */}
+              <View style={[
+                styles.toggleGroup,
+                (Platform.OS === 'web' || !isPortrait) ? { flexDirection: 'row', justifyContent: 'space-between' } : {}
+              ]}>
+                <View style={[
+                  styles.toggleItem,
+                  (Platform.OS === 'web' || !isPortrait) ? { flex: 1, marginRight: 4 } : {}
+                ]}>
                   <Text style={[styles.toggleLabel, { color: textColor }]}>Tumble</Text>
                   <Switch
                     value={tumble}
@@ -260,7 +271,10 @@ export function UnifiedMenuOverlay({
                     thumbColor={tumble ? '#fff' : '#f4f3f4'}
                   />
                 </View>
-                <View style={styles.toggleItem}>
+                <View style={[
+                  styles.toggleItem,
+                  (Platform.OS === 'web' || !isPortrait) ? { flex: 1, marginLeft: 4 } : {}
+                ]}>
                   <Text style={[styles.toggleLabel, { color: textColor }]}>Turn Letters</Text>
                   <Switch
                     value={showRotationInfos}
@@ -272,8 +286,11 @@ export function UnifiedMenuOverlay({
                     thumbColor={showRotationInfos ? '#fff' : '#f4f3f4'}
                   />
                 </View>
-                {/* Gold Mirror - only visible when in mirror mode */}
-                {isMirrorCube && (
+              </View>
+
+              {/* Gold Mirror - only visible when in mirror mode */}
+              {isMirrorCube && (
+                <View style={styles.toggleGroup}>
                   <View style={styles.toggleItem}>
                     <Text style={[styles.toggleLabel, { color: textColor }]}>Gold Mirror</Text>
                     <Switch
@@ -286,13 +303,25 @@ export function UnifiedMenuOverlay({
                       thumbColor={isGold ? '#fff' : '#f4f3f4'}
                     />
                   </View>
-                )}
-              </View>
+                </View>
+              )}
 
-              {/* Quick View - for solving (peek at other sides) */}
+              {/* Turn - Whole cube rotation */}
               <View style={{ marginTop: 6 }}>
-                <Text style={[styles.subLabel, { color: textColor }]}>Quick View (while solving)</Text>
-                <View style={styles.buttonRow}>
+                <View style={[styles.buttonRow, { justifyContent: 'flex-start' }]}>
+                  <Text style={[styles.subLabel, { color: textColor, marginTop: 0, marginBottom: 0, marginRight: 8 }]}>Turn</Text>
+                  <TouchableOpacity
+                    style={styles.smallButton}
+                    onPress={() => sendToWebView && sendToWebView('rotateByButton', 'x')}
+                  >
+                    <Text style={styles.smallButtonText}>X+</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.smallButton}
+                    onPress={() => sendToWebView && sendToWebView('rotateByButton', 'X')}
+                  >
+                    <Text style={styles.smallButtonText}>X-</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.smallButton}
                     onPress={() => sendToWebView && sendToWebView('rotateByButton', 'y')}
@@ -305,6 +334,13 @@ export function UnifiedMenuOverlay({
                   >
                     <Text style={styles.smallButtonText}>Y-</Text>
                   </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Look - Quick view for solving */}
+              <View style={{ marginTop: 6 }}>
+                <View style={[styles.buttonRow, { justifyContent: 'flex-start' }]}>
+                  <Text style={[styles.subLabel, { color: textColor, marginTop: 0, marginBottom: 0, marginRight: 8 }]}>Look</Text>
                   <TouchableOpacity
                     style={styles.smallButton}
                     onPress={() => sendToWebView && sendToWebView('toggleViewRight')}
@@ -357,8 +393,15 @@ export function UnifiedMenuOverlay({
 
             {/* Debug Section - Collapsible */}
             <CollapsibleSection title="🔧 Debug" defaultOpen={false} isDarkMode={isDarkMode}>
-              <View style={styles.toggleGroup}>
-                <View style={styles.toggleItem}>
+              {/* Row 1: Wireframe and Axes (or stacked in portrait) */}
+              <View style={[
+                styles.toggleGroup,
+                (Platform.OS === 'web' || !isPortrait) ? { flexDirection: 'row', justifyContent: 'space-between' } : {}
+              ]}>
+                <View style={[
+                  styles.toggleItem,
+                  (Platform.OS === 'web' || !isPortrait) ? { flex: 1, marginRight: 4 } : {}
+                ]}>
                   <Text style={[styles.toggleLabel, { color: textColor }]}>Wireframe</Text>
                   <Switch
                     value={isWireframe}
@@ -370,7 +413,10 @@ export function UnifiedMenuOverlay({
                     thumbColor={isWireframe ? '#fff' : '#f4f3f4'}
                   />
                 </View>
-                <View style={styles.toggleItem}>
+                <View style={[
+                  styles.toggleItem,
+                  (Platform.OS === 'web' || !isPortrait) ? { flex: 1, marginLeft: 4 } : {}
+                ]}>
                   <Text style={[styles.toggleLabel, { color: textColor }]}>Axes</Text>
                   <Switch
                     value={showAxes}
@@ -382,7 +428,17 @@ export function UnifiedMenuOverlay({
                     thumbColor={showAxes ? '#fff' : '#f4f3f4'}
                   />
                 </View>
-                <View style={styles.toggleItem}>
+              </View>
+
+              {/* Row 2: Numbers and Normals (or stacked in portrait) */}
+              <View style={[
+                styles.toggleGroup,
+                (Platform.OS === 'web' || !isPortrait) ? { flexDirection: 'row', justifyContent: 'space-between' } : {}
+              ]}>
+                <View style={[
+                  styles.toggleItem,
+                  (Platform.OS === 'web' || !isPortrait) ? { flex: 1, marginRight: 4 } : {}
+                ]}>
                   <Text style={[styles.toggleLabel, { color: textColor }]}>Numbers</Text>
                   <Switch
                     value={isShowNumbers}
@@ -394,7 +450,10 @@ export function UnifiedMenuOverlay({
                     thumbColor={isShowNumbers ? '#fff' : '#f4f3f4'}
                   />
                 </View>
-                <View style={styles.toggleItem}>
+                <View style={[
+                  styles.toggleItem,
+                  (Platform.OS === 'web' || !isPortrait) ? { flex: 1, marginLeft: 4 } : {}
+                ]}>
                   <Text style={[styles.toggleLabel, { color: textColor }]}>Normals</Text>
                   <Switch
                     value={isNormals}
@@ -575,13 +634,13 @@ const styles = StyleSheet.create({
 
   // Toggle Group
   toggleGroup: {
-    marginTop: 2,
+    marginTop: 0,
   },
   toggleItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 1,
+    paddingVertical: 2,
     paddingHorizontal: 4,
     minHeight: 32,
   },

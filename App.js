@@ -183,13 +183,17 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
     const updateOrientation = () => {
       const { width, height } = Dimensions.get('window');
       const newIsPortrait = height > width;
+      const wasPortrait = previousOrientationRef.current;
 
-      // Nur loggen wenn sich die Orientation wirklich ändert
-      if (previousOrientationRef.current !== newIsPortrait) {
+      // Show tap indicators for 3 seconds on orientation change (not on initial load)
+      if (wasPortrait !== null && wasPortrait !== newIsPortrait) {
         console.log('📱 Orientation changed:', newIsPortrait ? 'Portrait' : 'Landscape');
-        previousOrientationRef.current = newIsPortrait;
+        console.log('🔄 Orientation changed, showing tap indicators');
+        setShowTapIndicators(true);
       }
 
+      // Update refs and state
+      previousOrientationRef.current = newIsPortrait;
       setIsPortrait(newIsPortrait);
     };
 
@@ -212,6 +216,23 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
       return () => clearTimeout(timer);
     }
   }, [webAppUri]);
+
+  // Fade tap indicators after 3 seconds (Web and Mobile)
+  useEffect(() => {
+    if (showTapIndicators) {
+      console.log('⏱️ TapIndicators: Shown, will hide after 3 seconds');
+      const timer = setTimeout(() => {
+        console.log('⏱️ TapIndicators: 3 seconds elapsed, hiding now');
+        setShowTapIndicators(false);
+      }, 3000);
+      return () => {
+        console.log('⏱️ TapIndicators: Timer cleared');
+        clearTimeout(timer);
+      };
+    } else {
+      console.log('⏱️ TapIndicators: Hidden');
+    }
+  }, [showTapIndicators]);
 
   // Listen for messages from iframe/WebView (Web only - for menu toggle and state updates)
   useEffect(() => {
@@ -437,7 +458,8 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
             setShowMenu(true);
             setShowTapIndicators(false);
           }}
-          showIndicators={showTapIndicators && !showMenu}
+          showIndicators={showTapIndicators}
+          visible={!showMenu}
         />
 
         {/* Menu Overlay */}
@@ -578,7 +600,8 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
           setShowMenu(true);
           setShowTapIndicators(false);
         }}
-        showIndicators={showTapIndicators && !showMenu}
+        showIndicators={showTapIndicators}
+        visible={!showMenu}
       />
 
       {/* Menu Overlay */}
