@@ -34,9 +34,10 @@ let renderer: THREE.WebGLRenderer;
 let gui: GUI;
 let baseGroup: THREE.Group;
 
-// Save camera reset position (TrackballControls doesn't have saveState())
-let resetCameraPosition: THREE.Vector3;
-let resetCameraTarget: THREE.Vector3;
+// Fixed camera reset positions (different for portrait vs landscape/web)
+const CAMERA_DISTANCE_PORTRAIT = 10;  // Portrait: weiter weg (kleiner Würfel)
+const CAMERA_DISTANCE_LANDSCAPE = 5.0; // Landscape/Web: näher (10% größer als vorher bei 5.5)
+const FIXED_CAMERA_TARGET = new THREE.Vector3(0, 0, 0);
 
 let tumbleLevel = 0; // 0-4: tumble speed level
 let isShowNumbers = false;
@@ -275,15 +276,10 @@ function createCubeImmediately(): void {
   createDirLight(0, 5, 2);   // From top
   createDirLight(0, 0, -2);  // From back
 
-  // Initial camera update
+  // Initial camera setup: Calculate optimal distance based on screen size
   updateCamera(camera, objectWidth, objectHeight);
 
-  // Initialize and save camera position for reset (TrackballControls doesn't have saveState())
-  resetCameraPosition = camera.position.clone();
-  resetCameraTarget = controls.target.clone();
-  console.log('📷 Initial camera position saved for reset:', resetCameraPosition.z.toFixed(2));
-
-  // NOW call resetView() after reset variables are initialized
+  // NOW call resetView() to set camera to fixed standard position
   resetView();
 
   // Start rendering
@@ -1939,21 +1935,19 @@ function resetView(): void {
   tumbleLevel = 0;
   setViewRotation(baseGroup);
 
-  // Reset camera to saved position (from init or last resize)
-  // Only if resetCameraPosition has been initialized (not on first call during init)
-  if (resetCameraPosition) {
-    const beforePos = camera.position.clone();
-    camera.position.copy(resetCameraPosition);
-    controls.target.copy(resetCameraTarget);
-    console.log('📷 View reset: Camera BEFORE:',
-                '(' + beforePos.x.toFixed(2) + ', ' + beforePos.y.toFixed(2) + ', ' + beforePos.z.toFixed(2) + ')');
-    console.log('📷 View reset: Camera RESTORED:',
-                '(' + camera.position.x.toFixed(2) + ', ' + camera.position.y.toFixed(2) + ', ' + camera.position.z.toFixed(2) + ')');
-  } else {
-    console.log('📷 View reset: Skip camera restore (not initialized yet)');
-  }
+  // Choose camera distance based on aspect ratio (Portrait vs Landscape/Web)
+  const aspect = cubeDiv!.clientWidth / cubeDiv!.clientHeight;
+  const isPortrait = aspect < 1.0;
+  const cameraDistance = isPortrait ? CAMERA_DISTANCE_PORTRAIT : CAMERA_DISTANCE_LANDSCAPE;
 
-  // DO NOT call controls.reset() - it would override the camera position we just restored!
+  // Reset camera to fixed position (depending on orientation)
+  camera.position.set(0, 0, cameraDistance);
+  controls.target.copy(FIXED_CAMERA_TARGET);
+
+  console.log('📷 View reset: Camera distance =', cameraDistance.toFixed(2),
+              '(aspect=' + aspect.toFixed(2) + ', portrait=' + isPortrait + ')');
+
+  // DO NOT call controls.reset() - it would override the camera position we just set!
   // controls.reset() resets to the position saved by TrackballControls at init
   // We handle camera reset manually above
 
@@ -2360,11 +2354,16 @@ function calculateDistanceToFitObject(camera: THREE.PerspectiveCamera, objectWid
 // Function to update the camera's position based on the object size and window dimensions
 function updateCamera(camera: THREE.PerspectiveCamera, objectWidth: number, objectHeight: number) {
   const aspect = cubeDiv!.clientWidth / cubeDiv!.clientHeight;
-  const newDistance = calculateDistanceToFitObject(camera, objectWidth, objectHeight);
 
+  // Update aspect ratio and projection matrix
   camera.aspect = aspect;
-  camera.position.z = newDistance;
   camera.updateProjectionMatrix();
+
+  // NOTE: We do NOT change camera.position here!
+  // The camera position is controlled by:
+  // 1. resetView() - sets to fixed standard position
+  // 2. User interaction via TrackballControls (rotation, zoom)
+  // This ensures stable behavior across orientation/menu changes
 }
 
 // Setup event listeners (called after init)
@@ -2404,17 +2403,24 @@ function setupEventListeners() {
     if (cubeDiv === null) {
       return;
     }
+    // Update camera perspective based on new window size
     updateCamera(camera, objectWidth, objectHeight);
     renderer.setSize(cubeDiv!.clientWidth, cubeDiv!.clientHeight);
     controls.handleResize();
 
-    // Save the new camera position for reset
-    resetCameraPosition = camera.position.clone();
-    resetCameraTarget = controls.target.clone();
-    console.log('📐 Resize: Camera position saved:',
-                '(' + resetCameraPosition.x.toFixed(2) + ', ' +
-                resetCameraPosition.y.toFixed(2) + ', ' +
-                resetCameraPosition.z.toFixed(2) + ')');
+    // Adjust camera distance for portrait vs landscape (but keep x/y for rotation)
+    const aspect = cubeDiv!.clientWidth / cubeDiv!.clientHeight;
+    const isPortrait = aspect < 1.0;
+    const targetDistance = isPortrait ? CAMERA_DISTANCE_PORTRAIT : CAMERA_DISTANCE_LANDSCAPE;
+
+    // Only adjust z distance if significantly different (preserve user zoom)
+    // We normalize the current position to keep the direction but adjust distance
+    const currentDistance = camera.position.length();
+    if (Math.abs(currentDistance - targetDistance) > 0.5) {
+      const scale = targetDistance / currentDistance;
+      camera.position.multiplyScalar(scale);
+      console.log('📐 Resize: Camera distance adjusted to', targetDistance.toFixed(2), '(aspect=' + aspect.toFixed(2) + ')');
+    }
   });
 
   // Tap handler for closing menu when tapping on background (with drag threshold)
