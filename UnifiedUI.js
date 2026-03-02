@@ -8,6 +8,7 @@ import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
   Platform, Dimensions, TouchableWithoutFeedback, Switch
 } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /**
@@ -117,7 +118,7 @@ export function UnifiedMenuOverlay({
   isDarkMode = false,
   sendToWebView,
   // Toggle states
-  tumble = false,
+  tumbleLevel = 0, // 0-4
   isWireframe = false,
   isGold = false,
   showAxes = false,
@@ -126,7 +127,7 @@ export function UnifiedMenuOverlay({
   showRotationInfos = false,
   isMirrorCube = false,
   // setState functions (like PaDIPS)
-  setTumble,
+  setTumbleLevel,
   setIsWireframe,
   setIsGold,
   setShowAxes,
@@ -251,30 +252,32 @@ export function UnifiedMenuOverlay({
                 👁️ View
               </Text>
 
-              {/* View Toggles - First row: Tumble and Turn Letters in one horizontal row (or stacked in portrait) */}
-              <View style={[
-                styles.toggleGroup,
-                (Platform.OS === 'web' || !isPortrait) ? { flexDirection: 'row', justifyContent: 'space-between' } : {}
-              ]}>
-                <View style={[
-                  styles.toggleItem,
-                  (Platform.OS === 'web' || !isPortrait) ? { flex: 1, marginRight: 4 } : {}
-                ]}>
-                  <Text style={[styles.toggleLabel, { color: textColor }]}>Tumble</Text>
-                  <Switch
-                    value={tumble}
-                    onValueChange={(val) => {
-                      setTumble(val);
-                      sendToWebView && sendToWebView('setTumble', val);
-                    }}
-                    trackColor={{ false: '#ccc', true: '#4CAF50' }}
-                    thumbColor={tumble ? '#fff' : '#f4f3f4'}
-                  />
+              {/* Tumble Slider - Full width on its own row */}
+              <View style={styles.toggleGroup}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 2, minHeight: 32, paddingHorizontal: 4 }}>
+                  <Text style={[styles.toggleLabel, { color: textColor, width: '35%', flexShrink: 0 }]}>Tumble</Text>
+                  <View style={{ width: '65%', paddingLeft: 8 }}>
+                    <Slider
+                      style={{ width: '100%', height: 40 }}
+                      minimumValue={0}
+                      maximumValue={4}
+                      step={1}
+                      value={tumbleLevel}
+                      onValueChange={(val) => {
+                        setTumbleLevel(val);
+                        sendToWebView && sendToWebView('setTumbleLevel', val);
+                      }}
+                      minimumTrackTintColor="#4CAF50"
+                      maximumTrackTintColor="#ccc"
+                      thumbTintColor="#4CAF50"
+                    />
+                  </View>
                 </View>
-                <View style={[
-                  styles.toggleItem,
-                  (Platform.OS === 'web' || !isPortrait) ? { flex: 1, marginLeft: 4 } : {}
-                ]}>
+              </View>
+
+              {/* Turn Letters Switch - Separate row */}
+              <View style={styles.toggleGroup}>
+                <View style={styles.toggleItem}>
                   <Text style={[styles.toggleLabel, { color: textColor }]}>Turn Letters</Text>
                   <Switch
                     value={showRotationInfos}
@@ -647,6 +650,11 @@ const styles = StyleSheet.create({
   toggleLabel: {
     fontSize: 13,
     flex: 1,
+  },
+  sliderValue: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: -8,
   },
 
   // Small Buttons (for view controls)

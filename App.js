@@ -37,7 +37,7 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Toggle States (synced with WebView)
-  const [tumble, setTumble] = useState(false);
+  const [tumbleLevel, setTumbleLevel] = useState(0); // 0-4
   const [isWireframe, setIsWireframe] = useState(false);
   const [isGold, setIsGold] = useState(false);
   const [showAxes, setShowAxes] = useState(false);
@@ -239,7 +239,7 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
           } else if (data.type === 'stateUpdate') {
             // State update from WebView (toggle states)
             console.log('🔄 State update from WebView:', data);
-            if (data.tumble !== undefined) setTumble(data.tumble);
+            if (data.tumbleLevel !== undefined) setTumbleLevel(data.tumbleLevel);
             if (data.isWireframe !== undefined) setIsWireframe(data.isWireframe);
             if (data.isGold !== undefined) setIsGold(data.isGold);
             if (data.showAxes !== undefined) setShowAxes(data.showAxes);
@@ -456,7 +456,7 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
           onClose={() => setShowMenu(false)}
           isDarkMode={isDarkMode}
           sendToWebView={sendToIframe}
-          tumble={tumble}
+          tumbleLevel={tumbleLevel}
           isWireframe={isWireframe}
           isGold={isGold}
           showAxes={showAxes}
@@ -464,7 +464,7 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
           isNormals={isNormals}
           showRotationInfos={showRotationInfos}
           isMirrorCube={isMirrorCube}
-          setTumble={setTumble}
+          setTumbleLevel={setTumbleLevel}
           setIsWireframe={setIsWireframe}
           setIsGold={setIsGold}
           setShowAxes={setShowAxes}
@@ -536,7 +536,7 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
                 setShowMenu(false);
               } else if (data.type === 'stateUpdate') {
                 console.log('🔄 State update from WebView:', data);
-                if (data.tumble !== undefined) setTumble(data.tumble);
+                if (data.tumbleLevel !== undefined) setTumbleLevel(data.tumbleLevel);
                 if (data.isWireframe !== undefined) setIsWireframe(data.isWireframe);
                 if (data.isGold !== undefined) setIsGold(data.isGold);
                 if (data.showAxes !== undefined) setShowAxes(data.showAxes);
@@ -598,7 +598,7 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
         onClose={() => setShowMenu(false)}
         isDarkMode={isDarkMode}
         sendToWebView={sendToWebView}
-        tumble={tumble}
+        tumbleLevel={tumbleLevel}
         isWireframe={isWireframe}
         isGold={isGold}
         showAxes={showAxes}
@@ -606,7 +606,7 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
         isNormals={isNormals}
         showRotationInfos={showRotationInfos}
         isMirrorCube={isMirrorCube}
-        setTumble={setTumble}
+        setTumbleLevel={setTumbleLevel}
         setIsWireframe={setIsWireframe}
         setIsGold={setIsGold}
         setShowAxes={setShowAxes}

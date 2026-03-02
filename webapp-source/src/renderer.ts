@@ -38,7 +38,7 @@ let baseGroup: THREE.Group;
 let resetCameraPosition: THREE.Vector3;
 let resetCameraTarget: THREE.Vector3;
 
-let tumble = false;
+let tumbleLevel = 0; // 0-4: tumble speed level
 let isShowNumbers = false;
 let showAxes = false;
 let showRotationInfos = false;
@@ -328,10 +328,11 @@ function init1(): void {
 
 function animate(): void {
   requestAnimationFrame(animate);
-  if (tumble) {
-    baseGroup.rotation.x += 0.01;
-    baseGroup.rotation.y += 0.01;
-    baseGroup.rotation.z += 0.01;
+  if (tumbleLevel > 0) {
+    const speed = tumbleLevel * 0.0025; // 0.0025, 0.005, 0.0075, 0.01
+    baseGroup.rotation.x += speed;
+    baseGroup.rotation.y += speed;
+    baseGroup.rotation.z += speed;
     baseGroup.updateMatrix();
   }
   controls.update();
@@ -1929,7 +1930,7 @@ function rotateByButton(key: string): void {
 function resetView(): void {
   isViewRight = true;
   viewUp = 1;
-  tumble = false;
+  tumbleLevel = 0;
   setViewRotation(baseGroup);
 
   // Reset camera to saved position (from init or last resize)
@@ -1950,8 +1951,8 @@ function resetView(): void {
   // controls.reset() resets to the position saved by TrackballControls at init
   // We handle camera reset manually above
 
-  // Send state update so UI toggle reflects the reset
-  sendStateUpdate({ tumble: false });
+  // Send state update so UI slider reflects the reset
+  sendStateUpdate({ tumbleLevel: 0 });
 }
 
 function setViewRotation(group: THREE.Group): void {
@@ -2013,16 +2014,15 @@ function sendStateUpdate(stateObject: any) {
   }
 }
 
-function toggleTumble() {
-  tumble = !tumble;
-  sendStateUpdate({ tumble });
+function setTumbleLevel(level: number) {
+  if (level < 0 || level > 4) return;
+  tumbleLevel = level;
+  sendStateUpdate({ tumbleLevel });
 }
 
-function setTumble(value: boolean) {
-  if (tumble !== value) {
-    tumble = value;
-    sendStateUpdate({ tumble });
-  }
+function cycleTumbleLevel() {
+  tumbleLevel = (tumbleLevel + 1) % 5; // 0,1,2,3,4,0,...
+  sendStateUpdate({ tumbleLevel });
 }
 
 function toggleNormals(): void {
@@ -2086,7 +2086,9 @@ function setupGui(): GUI {
   looksFolder.add({ fun: () => toggleViewBack() },'fun').name('Backside [2]');
   looksFolder.add({ fun: () => toggleViewUnder() },'fun').name('Underside [3]');
   looksFolder.add({ fun: () => resetView() },'fun').name('Reset [0]');
-  looksFolder.add({ fun: () => toggleTumble() },'fun').name('Tumble [t]');
+  looksFolder.add({ level: tumbleLevel }, 'level', 0, 4, 1)
+    .name('Tumble [t]')
+    .onChange((value: number) => setTumbleLevel(value));
   looksFolder.add({ fun: () => toggleWireframe() },'fun').name('Wireframe [w]');
   looksFolder.add({ fun: () => setPyraColors() },'fun').name('Pyra-Colors [F6]');
   looksFolder.add({ fun: () => setDefaultColors() },'fun').name('Cube-Colors [F7]');
@@ -2253,9 +2255,9 @@ function onKeyDown(event: KeyboardEvent): void {
       }
       break;
 
-    case "t": // Pause animation
+    case "t": // Cycle tumble level
     case "T":
-      toggleTumble();
+      cycleTumbleLevel();
       break;
 
     case "ArrowUp":
@@ -2538,8 +2540,8 @@ function setupEventListeners() {
             rotateByButton(data.params);
             break;
           // Set actions with explicit values (for UI Switches)
-          case 'setTumble':
-            setTumble(data.params);
+          case 'setTumbleLevel':
+            setTumbleLevel(data.params);
             break;
           case 'setWireframe':
             setWireframe(data.params);
@@ -2559,10 +2561,7 @@ function setupEventListeners() {
           case 'setNormals':
             setNormals(data.params);
             break;
-          // Legacy toggle actions (for keyboard shortcuts)
-          case 'toggleTumble':
-            toggleTumble();
-            break;
+          // Legacy toggle actions (for keyboard shortcuts, not used anymore)
           case 'toggleWireframe':
             toggleWireframe();
             break;
