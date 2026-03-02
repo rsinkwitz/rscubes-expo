@@ -56,6 +56,10 @@ let isShowOneCube = false;
 let isViewRight = true;
 let viewUp = 1;
 let isGold = false;
+let cameraLock = false; // When true, TrackballControls are disabled
+// Separate UI toggle states (for menu display)
+let isViewBack = false;
+let isViewUnder = false;
 
 const cubeSize: number = 0.98;
 const cubeStep: number = 1;
@@ -384,7 +388,11 @@ function onDrag(event: MouseEvent) {
         // if object parent is not null
         if (obj.parent !== null && obj.parent.visible) {
           isMovingObject = true;
-          controls.enabled = false;
+          // Only disable controls if camera is not locked
+          // (If camera is locked, controls are already disabled and should stay that way)
+          if (!cameraLock) {
+            controls.enabled = false;
+          }
           selCube = obj.parent as THREE.Group;
           // console.log("box clicked " + obj.name + " fi=" + isInfo.faceIndex + " (" + selCube.position.x + " " + selCube.position.y + " " + selCube.position.z + ")");          
           selFace = isInfo.face as THREE.Face;
@@ -456,7 +464,10 @@ function onPointerUp( event: MouseEvent) {
   if (!mouseDown) return;
   if (isMovingObject) {
     isMovingObject = false;
-    controls.enabled = true;
+    // Only re-enable controls if camera is not locked
+    if (!cameraLock) {
+      controls.enabled = true;
+    }
     if (selRot !== "") {
       rotate(selRot);
     }
@@ -591,6 +602,15 @@ function setTurnLetters(value: boolean): void {
     showRotationInfos = value;
     createRotationInfos(showRotationInfos, false);
     sendStateUpdate({ showRotationInfos });
+  }
+}
+
+function setCameraLock(value: boolean): void {
+  if (cameraLock !== value) {
+    cameraLock = value;
+    controls.enabled = !cameraLock; // Disable controls when locked
+    console.log('🔒 Camera lock:', cameraLock ? 'ON (controls disabled)' : 'OFF (controls enabled)');
+    sendStateUpdate({ cameraLock });
   }
 }
 
@@ -1931,6 +1951,8 @@ function rotateByButton(key: string): void {
 
 function resetView(): void {
   isViewRight = true;
+  isViewBack = false;
+  isViewUnder = false;
   viewUp = 1;
   tumbleLevel = 0;
   setViewRotation(baseGroup);
@@ -1951,8 +1973,8 @@ function resetView(): void {
   // controls.reset() resets to the position saved by TrackballControls at init
   // We handle camera reset manually above
 
-  // Send state update so UI slider reflects the reset
-  sendStateUpdate({ tumbleLevel: 0 });
+  // Send state update so UI reflects the reset
+  sendStateUpdate({ tumbleLevel: 0, isViewRight: true, isViewBack: false, isViewUnder: false });
 }
 
 function setViewRotation(group: THREE.Group): void {
@@ -1988,18 +2010,31 @@ function setBasegroupRotation(): void {
 }
 
 function toggleViewBack() {
-  viewUp = viewUp === 1 ? 2 : 1;
+  isViewBack = !isViewBack;
+  viewUp = isViewBack ? 2 : 1;
   setBasegroupRotation();
+  // Turn off other view modes
+  if (isViewBack) {
+    isViewUnder = false;
+  }
+  sendStateUpdate({ isViewBack, isViewUnder });
 }
 
 function toggleViewUnder() {
-  viewUp = viewUp === 1 ? 0 : 1;
+  isViewUnder = !isViewUnder;
+  viewUp = isViewUnder ? 0 : 1;
   setBasegroupRotation();
+  // Turn off other view modes
+  if (isViewUnder) {
+    isViewBack = false;
+  }
+  sendStateUpdate({ isViewBack, isViewUnder });
 }
 
 function toggleViewRight() {
   isViewRight = !isViewRight;
   setBasegroupRotation();
+  sendStateUpdate({ isViewRight });
 }
 
 // Helper function to send state updates (works on Web and React Native)
@@ -2526,6 +2561,9 @@ function setupEventListeners() {
           case 'shuffle':
             cubeObject.shuffle(data.params || 10);
             break;
+          case 'resetMain':
+            resetMain();
+            break;
           case 'morph':
             cubeObject.morph(data.params || 0);
             break;
@@ -2563,6 +2601,9 @@ function setupEventListeners() {
             break;
           case 'setTurnLetters':
             setTurnLetters(data.params);
+            break;
+          case 'setCameraLock':
+            setCameraLock(data.params);
             break;
           case 'setAxes':
             setAxes(data.params);

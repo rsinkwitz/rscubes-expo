@@ -45,6 +45,10 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
   const [isNormals, setIsNormals] = useState(false);
   const [showRotationInfos, setShowRotationInfos] = useState(false);
   const [isMirrorCube, setIsMirrorCube] = useState(false);
+  const [cameraLock, setCameraLock] = useState(false);
+  const [isViewRight, setIsViewRight] = useState(true);
+  const [isViewBack, setIsViewBack] = useState(false);
+  const [isViewUnder, setIsViewUnder] = useState(false);
 
   // Refs (must be declared before any useEffect)
   const lastSentRef = useRef({ action: '', params: null, timestamp: 0 });
@@ -247,6 +251,10 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
             if (data.isNormals !== undefined) setIsNormals(data.isNormals);
             if (data.showRotationInfos !== undefined) setShowRotationInfos(data.showRotationInfos);
             if (data.isMirrorCube !== undefined) setIsMirrorCube(data.isMirrorCube);
+            if (data.cameraLock !== undefined) setCameraLock(data.cameraLock);
+            if (data.isViewRight !== undefined) setIsViewRight(data.isViewRight);
+            if (data.isViewBack !== undefined) setIsViewBack(data.isViewBack);
+            if (data.isViewUnder !== undefined) setIsViewUnder(data.isViewUnder);
           }
         } catch (e) {
           // Ignore non-JSON messages
@@ -464,6 +472,10 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
           isNormals={isNormals}
           showRotationInfos={showRotationInfos}
           isMirrorCube={isMirrorCube}
+          cameraLock={cameraLock}
+          isViewRight={isViewRight}
+          isViewBack={isViewBack}
+          isViewUnder={isViewUnder}
           setTumbleLevel={setTumbleLevel}
           setIsWireframe={setIsWireframe}
           setIsGold={setIsGold}
@@ -471,6 +483,7 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
           setIsShowNumbers={setIsShowNumbers}
           setIsNormals={setIsNormals}
           setShowRotationInfos={setShowRotationInfos}
+          setCameraLock={setCameraLock}
         />
       </View>
     );
@@ -544,6 +557,10 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
                 if (data.isNormals !== undefined) setIsNormals(data.isNormals);
                 if (data.showRotationInfos !== undefined) setShowRotationInfos(data.showRotationInfos);
                 if (data.isMirrorCube !== undefined) setIsMirrorCube(data.isMirrorCube);
+                if (data.cameraLock !== undefined) setCameraLock(data.cameraLock);
+                if (data.isViewRight !== undefined) setIsViewRight(data.isViewRight);
+                if (data.isViewBack !== undefined) setIsViewBack(data.isViewBack);
+                if (data.isViewUnder !== undefined) setIsViewUnder(data.isViewUnder);
               }
             } catch (e) {
               // Ignore non-JSON messages (console logs, etc.)
@@ -606,6 +623,10 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
         isNormals={isNormals}
         showRotationInfos={showRotationInfos}
         isMirrorCube={isMirrorCube}
+        cameraLock={cameraLock}
+        isViewRight={isViewRight}
+        isViewBack={isViewBack}
+        isViewUnder={isViewUnder}
         setTumbleLevel={setTumbleLevel}
         setIsWireframe={setIsWireframe}
         setIsGold={setIsGold}
@@ -613,6 +634,7 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
         setIsShowNumbers={setIsShowNumbers}
         setIsNormals={setIsNormals}
         setShowRotationInfos={setShowRotationInfos}
+        setCameraLock={setCameraLock}
       />
     </View>
   );

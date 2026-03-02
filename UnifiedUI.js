@@ -126,6 +126,10 @@ export function UnifiedMenuOverlay({
   isNormals = false,
   showRotationInfos = false,
   isMirrorCube = false,
+  cameraLock = false,
+  isViewRight = true,
+  isViewBack = false,
+  isViewUnder = false,
   // setState functions (like PaDIPS)
   setTumbleLevel,
   setIsWireframe,
@@ -134,6 +138,7 @@ export function UnifiedMenuOverlay({
   setIsShowNumbers,
   setIsNormals,
   setShowRotationInfos,
+  setCameraLock,
 }) {
   const insets = useSafeAreaInsets();
   const { width, height } = Dimensions.get('window');
@@ -240,6 +245,12 @@ export function UnifiedMenuOverlay({
                 >
                   <Text style={styles.buttonText}>🎲 Shuffle</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.controlButton}
+                  onPress={() => sendToWebView && sendToWebView('resetMain')}
+                >
+                  <Text style={styles.buttonText}>🔄 Reset</Text>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -275,9 +286,15 @@ export function UnifiedMenuOverlay({
                 </View>
               </View>
 
-              {/* Turn Letters Switch - Separate row */}
-              <View style={styles.toggleGroup}>
-                <View style={styles.toggleItem}>
+              {/* Turn Letters and Camera Lock - in one row on Web/Landscape, stacked in portrait */}
+              <View style={[
+                styles.toggleGroup,
+                (Platform.OS === 'web' || !isPortrait) ? { flexDirection: 'row', justifyContent: 'space-between' } : {}
+              ]}>
+                <View style={[
+                  styles.toggleItem,
+                  (Platform.OS === 'web' || !isPortrait) ? { flex: 1, marginRight: 4 } : {}
+                ]}>
                   <Text style={[styles.toggleLabel, { color: textColor }]}>Turn Letters</Text>
                   <Switch
                     value={showRotationInfos}
@@ -287,6 +304,21 @@ export function UnifiedMenuOverlay({
                     }}
                     trackColor={{ false: '#ccc', true: '#4CAF50' }}
                     thumbColor={showRotationInfos ? '#fff' : '#f4f3f4'}
+                  />
+                </View>
+                <View style={[
+                  styles.toggleItem,
+                  (Platform.OS === 'web' || !isPortrait) ? { flex: 1, marginLeft: 4 } : {}
+                ]}>
+                  <Text style={[styles.toggleLabel, { color: textColor }]}>Camera Lock</Text>
+                  <Switch
+                    value={cameraLock}
+                    onValueChange={(val) => {
+                      setCameraLock(val);
+                      sendToWebView && sendToWebView('setCameraLock', val);
+                    }}
+                    trackColor={{ false: '#ccc', true: '#4CAF50' }}
+                    thumbColor={cameraLock ? '#fff' : '#f4f3f4'}
                   />
                 </View>
               </View>
@@ -317,47 +349,56 @@ export function UnifiedMenuOverlay({
                     style={styles.smallButton}
                     onPress={() => sendToWebView && sendToWebView('rotateByButton', 'x')}
                   >
-                    <Text style={styles.smallButtonText}>X+</Text>
+                    <Text style={styles.arrowButtonText}>↑</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.smallButton}
                     onPress={() => sendToWebView && sendToWebView('rotateByButton', 'X')}
                   >
-                    <Text style={styles.smallButtonText}>X-</Text>
+                    <Text style={styles.arrowButtonText}>↓</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.smallButton}
                     onPress={() => sendToWebView && sendToWebView('rotateByButton', 'y')}
                   >
-                    <Text style={styles.smallButtonText}>Y+</Text>
+                    <Text style={styles.arrowButtonText}>←</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.smallButton}
                     onPress={() => sendToWebView && sendToWebView('rotateByButton', 'Y')}
                   >
-                    <Text style={styles.smallButtonText}>Y-</Text>
+                    <Text style={styles.arrowButtonText}>→</Text>
                   </TouchableOpacity>
                 </View>
               </View>
 
-              {/* Look - Quick view for solving */}
+              {/* Look - Quick view for solving (now with toggle states) */}
               <View style={{ marginTop: 6 }}>
                 <View style={[styles.buttonRow, { justifyContent: 'flex-start' }]}>
                   <Text style={[styles.subLabel, { color: textColor, marginTop: 0, marginBottom: 0, marginRight: 8 }]}>Look</Text>
                   <TouchableOpacity
-                    style={styles.smallButton}
+                    style={[
+                      styles.smallButton,
+                      { backgroundColor: isViewRight ? '#2196F3' : '#4CAF50' }
+                    ]}
                     onPress={() => sendToWebView && sendToWebView('toggleViewRight')}
                   >
                     <Text style={styles.smallButtonText}>L/R</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.smallButton}
+                    style={[
+                      styles.smallButton,
+                      { backgroundColor: isViewBack ? '#4CAF50' : '#2196F3' }
+                    ]}
                     onPress={() => sendToWebView && sendToWebView('toggleViewBack')}
                   >
                     <Text style={styles.smallButtonText}>Back</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.smallButton}
+                    style={[
+                      styles.smallButton,
+                      { backgroundColor: isViewUnder ? '#4CAF50' : '#2196F3' }
+                    ]}
                     onPress={() => sendToWebView && sendToWebView('toggleViewUnder')}
                   >
                     <Text style={styles.smallButtonText}>Under</Text>
@@ -671,6 +712,11 @@ const styles = StyleSheet.create({
   smallButtonText: {
     color: 'white',
     fontSize: 11,
+    fontWeight: 'bold',
+  },
+  arrowButtonText: {
+    color: 'white',
+    fontSize: 18,
     fontWeight: 'bold',
   },
 });
