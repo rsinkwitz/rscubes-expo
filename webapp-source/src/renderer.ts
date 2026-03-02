@@ -262,12 +262,18 @@ function createCubeImmediately(): void {
   // resetView() is called AFTER updateCamera() initializes reset variables
   controls.update();
 
-  // Add lights
-  const ambientLight = new THREE.AmbientLight(0x333333);
+  // Add lights - improved lighting for better visibility of all cube faces
+  const ambientLight = new THREE.AmbientLight(0x555555); // Increased from 0x333333
   scene.add(ambientLight);
 
+  // Main lights from left and right
   createDirLight(-5, 0, 2);
   createDirLight(5, 0, 2);
+
+  // Additional lights for better coverage
+  createDirLight(0, -5, 2);  // From bottom (illuminates underside)
+  createDirLight(0, 5, 2);   // From top
+  createDirLight(0, 0, -2);  // From back
 
   // Initial camera update
   updateCamera(camera, objectWidth, objectHeight);
