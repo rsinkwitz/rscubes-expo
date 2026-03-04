@@ -1124,7 +1124,7 @@ interface MaskEnabled {
 
 function setDefaultColors(): void {
   isPyraColors = false;
-  applyDefaultColors();
+  applyCubeFaces();
 }
 
 // Apply the colors to the cube faces according to the maskEnabled settings incl. mirror colors
