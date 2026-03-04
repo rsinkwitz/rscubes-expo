@@ -161,6 +161,7 @@ adb install -r android/app/build/outputs/apk/release/rscubes-release.apk
 - **F8** - Reset Cube
 - **F9** - Shuffle
 - **F10** - Toggle Menu
+- **F11** - Toggle Fullscreen (Web only)
 - **ESC** - Close Menu/Help
 
 ### **View & Navigation**

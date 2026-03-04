@@ -320,6 +320,38 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
           // Don't return - still forward to iframe for consistency
         }
 
+        // F11 key to toggle fullscreen (Web only)
+        if (event.key === 'F11') {
+          event.preventDefault();
+          const elem = document.documentElement;
+          if (!document.fullscreenElement) {
+            // Enter fullscreen
+            if (elem.requestFullscreen) {
+              elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) { // Safari
+              elem.webkitRequestFullscreen();
+            } else if (elem.mozRequestFullScreen) { // Firefox
+              elem.mozRequestFullScreen();
+            } else if (elem.msRequestFullscreen) { // IE/Edge
+              elem.msRequestFullscreen();
+            }
+            console.log('🖥️ F11: Entering fullscreen');
+          } else {
+            // Exit fullscreen
+            if (document.exitFullscreen) {
+              document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) { // Safari
+              document.webkitExitFullscreen();
+            } else if (document.mozCancelFullScreen) { // Firefox
+              document.mozCancelFullScreen();
+            } else if (document.msExitFullscreen) { // IE/Edge
+              document.msExitFullscreen();
+            }
+            console.log('🖥️ F11: Exiting fullscreen');
+          }
+          return; // Don't forward F11 to iframe
+        }
+
         // Forward ALL keys to iframe (so cube controls work even when iframe has focus)
         if (webViewRef.current && webViewRef.current.contentWindow) {
           const iframeWindow = webViewRef.current.contentWindow;
