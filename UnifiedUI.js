@@ -230,7 +230,10 @@ export function UnifiedMenuOverlay({
                   <Text style={styles.buttonText}>Pyra</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.controlButton}
+                  style={[
+                    styles.controlButton,
+                    { backgroundColor: isMirrorCube ? '#4CAF50' : '#3d81f6' }
+                  ]}
                   onPress={() => sendToWebView && sendToWebView('mirror')}
                 >
                   <Text style={styles.buttonText}>🪞 Mirror</Text>
@@ -263,6 +266,42 @@ export function UnifiedMenuOverlay({
                 >
                   <Text style={styles.buttonText}>🔄 Reset</Text>
                 </TouchableOpacity>
+                {Platform.OS === 'web' && (
+                  <TouchableOpacity
+                    style={styles.controlButton}
+                    onPress={() => {
+                      // Request fullscreen on the document element
+                      const elem = document.documentElement;
+                      if (!document.fullscreenElement) {
+                        // Enter fullscreen
+                        if (elem.requestFullscreen) {
+                          elem.requestFullscreen();
+                        } else if (elem.webkitRequestFullscreen) { // Safari
+                          elem.webkitRequestFullscreen();
+                        } else if (elem.mozRequestFullScreen) { // Firefox
+                          elem.mozRequestFullScreen();
+                        } else if (elem.msRequestFullscreen) { // IE/Edge
+                          elem.msRequestFullscreen();
+                        }
+                        console.log('🖥️ Entering fullscreen');
+                      } else {
+                        // Exit fullscreen
+                        if (document.exitFullscreen) {
+                          document.exitFullscreen();
+                        } else if (document.webkitExitFullscreen) { // Safari
+                          document.webkitExitFullscreen();
+                        } else if (document.mozCancelFullScreen) { // Firefox
+                          document.mozCancelFullScreen();
+                        } else if (document.msExitFullscreen) { // IE/Edge
+                          document.msExitFullscreen();
+                        }
+                        console.log('🖥️ Exiting fullscreen');
+                      }
+                    }}
+                  >
+                    <Text style={styles.buttonText}>⛶</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 
@@ -391,7 +430,7 @@ export function UnifiedMenuOverlay({
                   <TouchableOpacity
                     style={[
                       styles.smallButton,
-                      { backgroundColor: isViewRight ? '#2196F3' : '#4CAF50' }
+                      { backgroundColor: isViewRight ? '#3d81f6' : '#4CAF50' }
                     ]}
                     onPress={() => sendToWebView && sendToWebView('toggleViewRight')}
                   >
@@ -400,7 +439,7 @@ export function UnifiedMenuOverlay({
                   <TouchableOpacity
                     style={[
                       styles.smallButton,
-                      { backgroundColor: isViewBack ? '#4CAF50' : '#2196F3' }
+                      { backgroundColor: isViewBack ? '#4CAF50' : '#3d81f6' }
                     ]}
                     onPress={() => sendToWebView && sendToWebView('toggleViewBack')}
                   >
@@ -409,7 +448,7 @@ export function UnifiedMenuOverlay({
                   <TouchableOpacity
                     style={[
                       styles.smallButton,
-                      { backgroundColor: isViewUnder ? '#4CAF50' : '#2196F3' }
+                      { backgroundColor: isViewUnder ? '#4CAF50' : '#3d81f6' }
                     ]}
                     onPress={() => sendToWebView && sendToWebView('toggleViewUnder')}
                   >
@@ -815,7 +854,7 @@ const styles = StyleSheet.create({
 
   // Small Buttons (for view controls)
   smallButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#3d81f6',
     paddingHorizontal: 6,
     paddingVertical: 6,
     borderRadius: 4,
