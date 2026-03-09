@@ -117,6 +117,7 @@ export function UnifiedMenuOverlay({
   onClose,
   isDarkMode = false,
   sendToWebView,
+  isPortrait = true,
   // Toggle states
   tumbleLevel = 0, // 0-4
   isWireframe = false,
@@ -130,6 +131,10 @@ export function UnifiedMenuOverlay({
   isViewRight = true,
   isViewBack = false,
   isViewUnder = false,
+  // Stereo states
+  stereoMode = 'off',
+  eyeSeparation = 8.0, // in cm
+  cubeDepth = 0.0, // in meters
   // setState functions (like PaDIPS)
   setTumbleLevel,
   setIsWireframe,
@@ -139,16 +144,22 @@ export function UnifiedMenuOverlay({
   setIsNormals,
   setShowRotationInfos,
   setCameraLock,
+  setStereoMode,
+  setEyeSeparation,
+  setCubeDepth,
 }) {
   const insets = useSafeAreaInsets();
   const { width, height } = Dimensions.get('window');
-  const isPortrait = height > width;
+  const isPortraitLocal = height > width;
 
 
   if (!visible) return null;
 
   const bgColor = isDarkMode ? '#1a1a1a' : '#ffffff';
   const textColor = isDarkMode ? '#e0e0e0' : '#333';
+
+  // Web Stereo-Mode: Nur obere Hälfte nutzen
+  const isWebStereo = Platform.OS === 'web' && (stereoMode === 'topbottom' || stereoMode === 'sidebyside');
 
   // Menu width - wider on Web for more buttons, same % on Mobile
   const menuWidth = Platform.OS === 'web' ? 320 : '70%';
@@ -170,7 +181,8 @@ export function UnifiedMenuOverlay({
           paddingLeft: Platform.OS === 'web' ? (insets.left + 10) : (insets.left + 4), // Weniger Left-Padding auf Mobile
           paddingRight: insets.right + 10,
           pointerEvents: 'auto', // Menu Panel fängt Touch-Events
-        }
+        },
+        isWebStereo && styles.menuPanelWebStereo,
       ]}>
         <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
           {/* Menu Content with Header inside */}
@@ -511,6 +523,106 @@ export function UnifiedMenuOverlay({
                 </View>
               </View>
             </CollapsibleSection>
+
+            {/* Divider */}
+            <View style={[styles.divider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
+
+            {/* Stereo Section - Collapsible */}
+            <CollapsibleSection title="🕶️ 3D Stereo" defaultOpen={false} isDarkMode={isDarkMode}>
+              {/* Stereo Mode Toggle */}
+              <View style={styles.toggleGroup}>
+                <View style={styles.toggleItem}>
+                  <Text style={[styles.toggleLabel, { color: textColor }]}>Stereo Mode [3]</Text>
+                  <Switch
+                    value={stereoMode !== 'off'}
+                    onValueChange={(val) => {
+                      if (!val) {
+                        setStereoMode('off');
+                        sendToWebView && sendToWebView('setStereoMode', 'off');
+                      } else {
+                        // Choose mode based on platform and orientation
+                        let mode;
+                        if (Platform.OS === 'web') {
+                          mode = 'topbottom';
+                        } else if (isPortraitLocal) {
+                          mode = 'anaglyph';
+                        } else {
+                          mode = 'sidebyside';
+                        }
+                        setStereoMode(mode);
+                        sendToWebView && sendToWebView('setStereoMode', mode);
+                      }
+                    }}
+                    trackColor={{ false: '#ccc', true: '#E91E63' }}
+                    thumbColor={stereoMode !== 'off' ? '#fff' : '#f4f3f4'}
+                  />
+                </View>
+              </View>
+
+              {/* Stereo Parameters - Only visible when stereo is active */}
+              {stereoMode !== 'off' && (
+                <>
+                  {/* Eye Separation Slider */}
+                  <View style={styles.sliderGroup}>
+                    <View style={styles.sliderHeader}>
+                      <Text style={[styles.toggleLabel, { color: textColor, flex: 1 }]}>
+                        Eye Separation
+                      </Text>
+                      <Text style={[styles.sliderValue, { color: textColor }]}>
+                        {eyeSeparation.toFixed(1)} cm
+                      </Text>
+                    </View>
+                    <Slider
+                      style={styles.slider}
+                      minimumValue={5}
+                      maximumValue={15}
+                      step={0.2}
+                      value={eyeSeparation}
+                      onValueChange={(val) => {
+                        setEyeSeparation(val);
+                        sendToWebView && sendToWebView('setEyeSeparation', val / 100); // cm to m
+                      }}
+                      minimumTrackTintColor="#E91E63"
+                      maximumTrackTintColor="#ddd"
+                    />
+                  </View>
+
+                  {/* Cube Depth Slider */}
+                  <View style={styles.sliderGroup}>
+                    <View style={styles.sliderHeader}>
+                      <Text style={[styles.toggleLabel, { color: textColor, flex: 1 }]}>
+                        Cube Depth
+                      </Text>
+                      <Text style={[styles.sliderValue, { color: textColor }]}>
+                        {cubeDepth.toFixed(1)} m
+                      </Text>
+                    </View>
+                    <Slider
+                      style={styles.slider}
+                      minimumValue={-2}
+                      maximumValue={2}
+                      step={0.1}
+                      value={cubeDepth}
+                      onValueChange={(val) => {
+                        setCubeDepth(val);
+                        sendToWebView && sendToWebView('setCubeDepth', val);
+                      }}
+                      minimumTrackTintColor="#E91E63"
+                      maximumTrackTintColor="#ddd"
+                    />
+                  </View>
+
+                  {/* Stereo Mode Info */}
+                  <View style={styles.infoBox}>
+                    <Text style={[styles.infoText, { color: textColor }]}>
+                      {stereoMode === 'anaglyph' && '🎨 Red-Blue Anaglyph (3D glasses)'}
+                      {stereoMode === 'topbottom' && '📺 Top-Bottom (for projectors)'}
+                      {stereoMode === 'sidebyside' && '🥽 Side-by-Side (VR Cardboard)'}
+                    </Text>
+                  </View>
+                </>
+              )}
+            </CollapsibleSection>
           </ScrollView>
 
           {/* Footer - nur auf Web */}
@@ -570,7 +682,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 10,
+  },
+  menuPanelWebStereo: {
+    // Web Stereo-Mode: Nur obere Hälfte
+    maxHeight: '50%',
   },
   menuHeader: {
     flexDirection: 'row',
@@ -718,6 +833,34 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+
+  // Stereo Controls
+  sliderGroup: {
+    marginTop: 6,
+    marginBottom: 6,
+    paddingHorizontal: 4,
+  },
+  sliderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  slider: {
+    width: '100%',
+    height: 30,
+  },
+  infoBox: {
+    backgroundColor: 'rgba(233, 30, 99, 0.1)',
+    borderRadius: 6,
+    padding: 8,
+    marginTop: 6,
+  },
+  infoText: {
+    fontSize: 11,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
 

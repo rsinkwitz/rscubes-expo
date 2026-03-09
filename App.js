@@ -50,6 +50,11 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
   const [isViewBack, setIsViewBack] = useState(false);
   const [isViewUnder, setIsViewUnder] = useState(false);
 
+  // Stereo State
+  const [stereoMode, setStereoMode] = useState('off');
+  const [eyeSeparation, setEyeSeparation] = useState(8.0); // in cm (default: 80mm)
+  const [cubeDepth, setCubeDepth] = useState(0.0); // -2 to +2 meters
+
   // Refs (must be declared before any useEffect)
   const lastSentRef = useRef({ action: '', params: null, timestamp: 0 });
 
@@ -255,6 +260,10 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
             if (data.isViewRight !== undefined) setIsViewRight(data.isViewRight);
             if (data.isViewBack !== undefined) setIsViewBack(data.isViewBack);
             if (data.isViewUnder !== undefined) setIsViewUnder(data.isViewUnder);
+            // Stereo updates
+            if (data.stereoMode !== undefined) setStereoMode(data.stereoMode);
+            if (data.eyeSeparation !== undefined) setEyeSeparation(data.eyeSeparation * 100); // m to cm
+            if (data.cubeDepth !== undefined) setCubeDepth(data.cubeDepth);
           }
         } catch (e) {
           // Ignore non-JSON messages
@@ -516,6 +525,13 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
           setIsNormals={setIsNormals}
           setShowRotationInfos={setShowRotationInfos}
           setCameraLock={setCameraLock}
+          stereoMode={stereoMode}
+          eyeSeparation={eyeSeparation}
+          cubeDepth={cubeDepth}
+          setStereoMode={setStereoMode}
+          setEyeSeparation={setEyeSeparation}
+          setCubeDepth={setCubeDepth}
+          isPortrait={isPortrait}
         />
       </View>
     );
@@ -535,8 +551,8 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
         styles.webViewContainer,
         Platform.OS !== 'web' && isPortrait && styles.webViewContainerPortrait,
         Platform.OS !== 'web' && !isPortrait && styles.webViewContainerLandscape,
-        // In Landscape: WebView auf rechte Hälfte begrenzen wenn Menu offen
-        Platform.OS !== 'web' && !isPortrait && showMenu && styles.webViewContainerLandscapeWithMenu,
+        // In Landscape (NICHT Stereo): WebView schmaler wenn Menu offen
+        Platform.OS !== 'web' && !isPortrait && showMenu && stereoMode === 'off' && styles.webViewContainerLandscapeWithMenu,
       ]}>
         <WebView
           ref={webViewRef}
@@ -667,6 +683,13 @@ function AppContent({ webAppUri, setWebAppUri, loading, setLoading, error, setEr
         setIsNormals={setIsNormals}
         setShowRotationInfos={setShowRotationInfos}
         setCameraLock={setCameraLock}
+        stereoMode={stereoMode}
+        eyeSeparation={eyeSeparation}
+        cubeDepth={cubeDepth}
+        setStereoMode={setStereoMode}
+        setEyeSeparation={setEyeSeparation}
+        setCubeDepth={setCubeDepth}
+        isPortrait={isPortrait}
       />
     </View>
   );

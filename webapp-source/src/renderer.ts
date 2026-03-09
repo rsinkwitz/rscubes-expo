@@ -10,6 +10,9 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader';
 import helvetikerFontData from './assets/helvetiker_regular.typeface.json';
 // import { CustomControls } from './CustomControls';
 
+// Stereo rendering imports
+import { StereoCamera } from 'three';
+
 // Check if we're in a browser environment
 if (typeof window === 'undefined' || typeof document === 'undefined') {
   console.error('Not in a browser environment - cannot initialize cube app');
@@ -33,6 +36,17 @@ let controls: TrackballControls ;
 let renderer: THREE.WebGLRenderer;
 let gui: GUI;
 let baseGroup: THREE.Group;
+
+// Stereo rendering variables
+let stereoCamera: StereoCamera;
+let stereoMode: 'off' | 'anaglyph' | 'topbottom' | 'sidebyside' = 'off';
+let renderTargetL: THREE.WebGLRenderTarget;
+let renderTargetR: THREE.WebGLRenderTarget;
+let anaglyphMaterial: THREE.ShaderMaterial | null = null;
+let anaglyphQuad: THREE.Mesh | null = null;
+let lastLoggedStereoMode: 'off' | 'anaglyph' | 'topbottom' | 'sidebyside' = 'off';
+let cubeDepth: number = 0.0; // Cube depth offset for stereo effect (-2 to +2 meters)
+let lastAspectRatio: number = window.innerWidth / window.innerHeight;
 
 // Fixed camera reset positions (different for portrait vs landscape/web)
 const CAMERA_DISTANCE_PORTRAIT = 10;  // Portrait: weiter weg (kleiner Würfel)
@@ -110,6 +124,56 @@ let mirrorMaterials: THREE.MeshStandardMaterial[] = [
   silverMaterial, silverMaterial, silverMaterial
 ];
 
+/**
+ * Initialize Anaglyph Shader Material for Red-Blue stereo compositing
+ */
+function initAnaglyphMaterial(): void {
+  // Dubois-style Red-Blue anaglyph shader for better color preservation
+  const vertexShader = `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+
+  const fragmentShader = `
+    uniform sampler2D mapLeft;
+    uniform sampler2D mapRight;
+    varying vec2 vUv;
+
+    void main() {
+      vec4 colorL = texture2D(mapLeft, vUv);
+      vec4 colorR = texture2D(mapRight, vUv);
+
+      // Dubois Red-Blue Anaglyph matrix for better color preservation
+      // Left eye (Red channel only)
+      float red = colorL.r;
+
+      // Right eye (Green + Blue channels)
+      float green = colorR.g;
+      float blue = colorR.b;
+
+      gl_FragColor = vec4(red, green, blue, 1.0);
+    }
+  `;
+
+  anaglyphMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      mapLeft: { value: renderTargetL.texture },
+      mapRight: { value: renderTargetR.texture },
+    },
+    vertexShader,
+    fragmentShader,
+    depthTest: false,
+    depthWrite: false,
+  });
+
+  // Create fullscreen quad for anaglyph compositing
+  const quadGeometry = new THREE.PlaneGeometry(2, 2);
+  anaglyphQuad = new THREE.Mesh(quadGeometry, anaglyphMaterial);
+}
+
 function init(): void {
   // Expose THREE to global scope for debugging
   (window as any).THREE = THREE;
@@ -142,6 +206,20 @@ function init(): void {
 
   renderer.setClearColor(bgColor ? bgColor : 0xb0c4de); // Light blue-gray color in hexadecimal
   
+  // Initialize stereo camera (default eye separation: 80mm)
+  stereoCamera = new StereoCamera();
+  stereoCamera.aspect = aspect;
+  stereoCamera.eyeSep = 0.08; // Default: 80mm (8cm) for comfortable stereo effect
+
+  // Initialize render targets for anaglyph stereo
+  renderTargetL = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
+  renderTargetR = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
+
+  // Initialize anaglyph shader material (Red-Blue composite)
+  initAnaglyphMaterial();
+
+  lastAspectRatio = aspect;
+
   baseGroup = new THREE.Group();
   scene.add(baseGroup);
 
@@ -332,6 +410,152 @@ function init1(): void {
   animate();
 }
 
+/**
+ * Render scene with stereo effect (anaglyph, top-bottom, or side-by-side)
+ */
+function renderStereo(): void {
+  controls.update();
+
+  // Handle different stereo modes
+  if (stereoMode === 'off') {
+    // Normal mono rendering
+    if (lastLoggedStereoMode !== 'off') {
+      lastLoggedStereoMode = 'off';
+    }
+    renderer.render(scene, camera);
+
+  } else if (stereoMode === 'anaglyph' && stereoCamera && renderTargetL && renderTargetR && anaglyphMaterial) {
+    // Anaglyph stereo rendering (Red-Blue)
+
+    // Apply cube depth offset
+    const targetPosition = FIXED_CAMERA_TARGET.clone().add(new THREE.Vector3(0, 0, cubeDepth));
+    camera.lookAt(targetPosition);
+
+    // 1. Update StereoCamera
+    stereoCamera.update(camera);
+
+    // 2. Render left eye
+    renderer.setRenderTarget(renderTargetL);
+    renderer.clear();
+    renderer.render(scene, stereoCamera.cameraL);
+
+    // 3. Render right eye
+    renderer.setRenderTarget(renderTargetR);
+    renderer.clear();
+    renderer.render(scene, stereoCamera.cameraR);
+
+    // 4. Composite Red-Blue Anaglyph
+    renderer.setRenderTarget(null);
+
+    if (anaglyphQuad) {
+      const orthoCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      const orthoScene = new THREE.Scene();
+      orthoScene.add(anaglyphQuad);
+      renderer.render(orthoScene, orthoCamera);
+    }
+
+  } else if (stereoMode === 'topbottom' && stereoCamera) {
+    // Top-Bottom split-screen stereo
+
+    // Apply cube depth offset
+    const targetPosition = FIXED_CAMERA_TARGET.clone().add(new THREE.Vector3(0, 0, cubeDepth));
+    camera.lookAt(targetPosition);
+
+    // 1. Update StereoCamera
+    stereoCamera.update(camera);
+
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const halfHeight = height / 2;
+
+    // 2. Render top half (left eye)
+    renderer.setViewport(0, halfHeight, width, halfHeight);
+    renderer.setScissor(0, halfHeight, width, halfHeight);
+    renderer.setScissorTest(true);
+    renderer.render(scene, stereoCamera.cameraL);
+
+    // 3. Render bottom half (right eye)
+    renderer.setViewport(0, 0, width, halfHeight);
+    renderer.setScissor(0, 0, width, halfHeight);
+    renderer.render(scene, stereoCamera.cameraR);
+
+    // 4. Reset viewport and scissor
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, width, height);
+
+  } else if (stereoMode === 'sidebyside' && stereoCamera) {
+    // Side-by-Side stereo for VR Cardboard and Projectors
+
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const halfWidth = width / 2;
+
+    // Apply cube depth offset
+    const targetPosition = FIXED_CAMERA_TARGET.clone().add(new THREE.Vector3(0, 0, cubeDepth));
+    camera.lookAt(targetPosition);
+
+    // Detect platform:
+    // - Mobile VR (React Native WebView): Each eye 1:1 aspect (for Cardboard headset)
+    // - Web/Projector (Browser): Each eye 1/2 width aspect (projector will stretch to full width)
+
+    // Check if running in React Native WebView
+    const isReactNativeWebView = !!(window as any).ReactNativeWebView;
+
+    let aspectPerEye: number;
+    if (isReactNativeWebView) {
+      // Mobile VR (React Native): Use full aspect for 1:1 (square per eye)
+      aspectPerEye = halfWidth / height;
+    } else {
+      // Web/Projector (Browser): Cube should be 1/2 as wide as it is tall
+      // For aspect ratio width:height = 1:2, we need aspect = 0.5
+      aspectPerEye = height / (2 * halfWidth);
+    }
+
+    // Update camera aspect for each eye before updating StereoCamera
+    const originalAspect = camera.aspect;
+    camera.aspect = aspectPerEye;
+    camera.updateProjectionMatrix();
+
+    // Update StereoCamera with corrected aspect
+    stereoCamera.aspect = aspectPerEye;
+    stereoCamera.update(camera);
+
+    // Log only once when mode changes
+    if (lastLoggedStereoMode !== 'sidebyside') {
+      console.log('🥽 Side-by-Side Stereo Active:', {
+        width,
+        height,
+        halfWidth,
+        platform: isReactNativeWebView ? 'Mobile VR (React Native)' : 'Web/Projector (Browser)',
+        aspectPerEye: aspectPerEye.toFixed(3),
+        eyeSep: stereoCamera.eyeSep,
+        cameraL: !!stereoCamera.cameraL,
+        cameraR: !!stereoCamera.cameraR
+      });
+      lastLoggedStereoMode = 'sidebyside';
+    }
+
+    // 2. Render left half (left eye)
+    renderer.setViewport(0, 0, halfWidth, height);
+    renderer.setScissor(0, 0, halfWidth, height);
+    renderer.setScissorTest(true);
+    renderer.render(scene, stereoCamera.cameraL);
+
+    // 3. Render right half (right eye)
+    renderer.setViewport(halfWidth, 0, halfWidth, height);
+    renderer.setScissor(halfWidth, 0, halfWidth, height);
+    renderer.render(scene, stereoCamera.cameraR);
+
+    // 4. Reset viewport and scissor
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, width, height);
+
+    // Restore original aspect
+    camera.aspect = originalAspect;
+    camera.updateProjectionMatrix();
+  }
+}
+
 function animate(): void {
   requestAnimationFrame(animate);
   if (tumbleLevel > 0) {
@@ -341,8 +565,7 @@ function animate(): void {
     baseGroup.rotation.z += speed;
     baseGroup.updateMatrix();
   }
-  controls.update();
-  renderer.render(scene, camera);
+  renderStereo(); // Handles both mono and stereo rendering
 }
 
 let mouseDown = false;
@@ -1374,7 +1597,7 @@ function getRotationData(key: string): rotationDataEntry {
   return data[key];
 }
 
-  function undoOperation(): void {
+function undoOperation(): void {
     if (numAnims > 0 || opsHistoryIndex < 0 || isHideNext) {
       return; // no undo while an animation is running
     }
@@ -2104,6 +2327,67 @@ function setGold(value: boolean): void {
   }
 }
 
+/**
+ * Set 3D Stereo Mode
+ * @param mode - Stereo mode: 'off', 'anaglyph', 'topbottom', 'sidebyside'
+ */
+function setStereoMode(mode: 'off' | 'anaglyph' | 'topbottom' | 'sidebyside'): void {
+  stereoMode = mode;
+  console.log('🕶️ Stereo Mode:', mode);
+
+  if (mode !== 'off' && stereoCamera) {
+    console.log('👁️ Eye separation:', stereoCamera.eyeSep, 'meters');
+
+    if (mode === 'anaglyph') {
+      console.log('🎨 Red-Blue Anaglyph rendering active');
+    } else if (mode === 'topbottom') {
+      console.log('📺 Top-Bottom split-screen rendering active');
+    } else if (mode === 'sidebyside') {
+      console.log('🥽 Side-by-Side VR Cardboard rendering active');
+    }
+  }
+
+  // Reset logged mode to force log on next render
+  lastLoggedStereoMode = 'off';
+  sendStateUpdate({ stereoMode });
+}
+
+/**
+ * Set stereo eye separation (Augenabstand) for optimal 3D effect
+ * Default is 0.08 (80mm - comfortable stereo effect)
+ * @param separation - Eye separation in meters (typically 0.05 to 0.15)
+ */
+function setEyeSeparation(separation: number): void {
+  if (stereoCamera) {
+    stereoCamera.eyeSep = separation;
+    console.log('👁️ Eye separation:', separation.toFixed(3), 'm');
+    sendStateUpdate({ eyeSeparation: separation });
+  }
+}
+
+/**
+ * Set cube depth offset for stereo effect
+ * Positive values make cube appear to float in front of screen
+ * Negative values make cube appear behind screen
+ * @param depth - Depth offset in meters (-2 to +2)
+ */
+function setCubeDepth(depth: number): void {
+  cubeDepth = Math.max(-2, Math.min(2, depth));
+  console.log('📦 Cube depth:', cubeDepth.toFixed(2), 'm');
+  sendStateUpdate({ cubeDepth });
+}
+
+/**
+ * Cycle stereo mode (for keyboard shortcut)
+ * OFF -> ANAGLYPH -> TOP_BOTTOM -> SIDE_BY_SIDE -> OFF
+ */
+function cycleStereoMode(): void {
+  const modes: Array<'off' | 'anaglyph' | 'topbottom' | 'sidebyside'> = ['off', 'anaglyph', 'topbottom', 'sidebyside'];
+  const currentIndex = modes.indexOf(stereoMode);
+  const nextIndex = (currentIndex + 1) % modes.length;
+  setStereoMode(modes[nextIndex]);
+}
+
 function setupGui(): GUI {
   const gui = new GUI({closed: false, width: 100, autoPlace: false});
   gui.close();
@@ -2443,6 +2727,15 @@ function setupEventListeners() {
     renderer.setSize(cubeDiv!.clientWidth, cubeDiv!.clientHeight);
     controls.handleResize();
 
+    // Update Stereo Render-Targets
+    if (renderTargetL && renderTargetR) {
+      renderTargetL.setSize(window.innerWidth, window.innerHeight);
+      renderTargetR.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // Update last aspect ratio
+    lastAspectRatio = window.innerWidth / window.innerHeight;
+
     // Adjust camera distance for portrait vs landscape (but keep x/y for rotation)
     const aspect = cubeDiv!.clientWidth / cubeDiv!.clientHeight;
     const isPortrait = aspect < 1.0;
@@ -2646,6 +2939,19 @@ function setupEventListeners() {
             break;
           case 'toggleTurnLetters':
             toggleTurnLetters();
+            break;
+          // Stereo actions
+          case 'setStereoMode':
+            setStereoMode(data.params);
+            break;
+          case 'setEyeSeparation':
+            setEyeSeparation(data.params);
+            break;
+          case 'setCubeDepth':
+            setCubeDepth(data.params);
+            break;
+          case 'cycleStereoMode':
+            cycleStereoMode();
             break;
           // Keyboard events forwarded from parent
           case 'keydown':
