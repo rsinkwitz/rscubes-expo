@@ -2579,6 +2579,23 @@ function onKeyDown(event: KeyboardEvent): void {
       cycleTumbleLevel();
       break;
 
+    case "v": // VR Stereo mode
+    case "V":
+      // Toggle VR stereo: Side-by-Side on mobile, Top-Bottom on web
+      if (stereoMode === 'off') {
+        // Activate VR stereo based on platform
+        const isReactNative = typeof (window as any).ReactNativeWebView !== 'undefined';
+        if (isReactNative) {
+          setStereoMode('sidebyside'); // Mobile: Side-by-Side (VR Cardboard)
+        } else {
+          setStereoMode('topbottom'); // Web: Top-Bottom
+        }
+      } else {
+        // Turn off stereo
+        setStereoMode('off');
+      }
+      break;
+
     case "ArrowUp":
       // cube.rotation.x += 0.1;
       // cube.updateMatrix();
